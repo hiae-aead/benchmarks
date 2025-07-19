@@ -1,4 +1,4 @@
-# IETF Cryptographic Benchmarks
+# High-Performance AEADs Benchmarks
 
 This repository contains cryptographic benchmarking implementations for various AEAD (Authenticated Encryption with Associated Data) algorithms designed for high-performance, both on ARM and Intel CPUs.
 
