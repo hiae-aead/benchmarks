@@ -1,13 +1,5 @@
 #include "crypto_aead.h"
-
-/* Force ARM crypto extensions since we're on ARM with AES support */
-#ifdef __aarch64__
-#ifndef __ARM_FEATURE_CRYPTO
-#define __ARM_FEATURE_CRYPTO 1
-#endif
-#endif
-
-#include "HiAE_amalgamated.c"
+#include "HiAE.h"
 
 int crypto_aead_encrypt(unsigned char *c, unsigned long long *clen,
                        const unsigned char *m, unsigned long long mlen,
