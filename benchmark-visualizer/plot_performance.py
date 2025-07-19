@@ -136,22 +136,24 @@ def create_performance_plot(csv_dir):
     encrypt_data = combined_df[combined_df['Operation'] == 'encrypt']
     decrypt_data = combined_df[combined_df['Operation'] == 'decrypt']
     
-    # Set up the plot
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
-    
     x = np.arange(len(algorithms))
     width = 0.35
     
-    # Plot Gbps performance
+    # Extract data for plotting
     encrypt_gbps = [encrypt_data[encrypt_data['Algorithm'] == alg]['Gbps'].iloc[0] if not encrypt_data[encrypt_data['Algorithm'] == alg].empty else 0 for alg in algorithms]
     decrypt_gbps = [decrypt_data[decrypt_data['Algorithm'] == alg]['Gbps'].iloc[0] if not decrypt_data[decrypt_data['Algorithm'] == alg].empty else 0 for alg in algorithms]
+    encrypt_cycles = [encrypt_data[encrypt_data['Algorithm'] == alg]['Cycles/Byte'].iloc[0] if not encrypt_data[encrypt_data['Algorithm'] == alg].empty else 0 for alg in algorithms]
+    decrypt_cycles = [decrypt_data[decrypt_data['Algorithm'] == alg]['Cycles/Byte'].iloc[0] if not decrypt_data[decrypt_data['Algorithm'] == alg].empty else 0 for alg in algorithms]
+    
+    # Plot 1: Throughput (Gbps)
+    fig1, ax1 = plt.subplots(1, 1, figsize=(10, 6))
     
     bars1 = ax1.bar(x - width/2, encrypt_gbps, width, label='Encryption', alpha=0.8, color='skyblue')
     bars2 = ax1.bar(x + width/2, decrypt_gbps, width, label='Decryption', alpha=0.8, color='lightcoral')
     
     ax1.set_xlabel('Algorithm')
     ax1.set_ylabel('Performance (Gbps)')
-    ax1.set_title('Encryption vs Decryption Performance (65536 bytes)\nThroughput in Gbps')
+    ax1.set_title('Encryption vs Decryption Throughput (65536 bytes)')
     ax1.set_xticks(x)
     ax1.set_xticklabels(algorithms, rotation=45, ha='right')
     ax1.legend()
@@ -168,16 +170,23 @@ def create_performance_plot(csv_dir):
         ax1.text(bar.get_x() + bar.get_width()/2., height + 1,
                 f'{height:.1f}', ha='center', va='bottom', fontsize=9)
     
-    # Plot Cycles/Byte performance (lower is better)
-    encrypt_cycles = [encrypt_data[encrypt_data['Algorithm'] == alg]['Cycles/Byte'].iloc[0] if not encrypt_data[encrypt_data['Algorithm'] == alg].empty else 0 for alg in algorithms]
-    decrypt_cycles = [decrypt_data[decrypt_data['Algorithm'] == alg]['Cycles/Byte'].iloc[0] if not decrypt_data[decrypt_data['Algorithm'] == alg].empty else 0 for alg in algorithms]
+    plt.tight_layout()
+    
+    # Save throughput plot
+    output_file1 = csv_dir.parent / f"throughput_comparison_{csv_dir.name}.png"
+    plt.savefig(output_file1, dpi=300, bbox_inches='tight')
+    print(f"Throughput comparison saved to: {output_file1}")
+    plt.close()
+    
+    # Plot 2: Cycles per Byte (lower is better)
+    fig2, ax2 = plt.subplots(1, 1, figsize=(10, 6))
     
     bars3 = ax2.bar(x - width/2, encrypt_cycles, width, label='Encryption', alpha=0.8, color='skyblue')
     bars4 = ax2.bar(x + width/2, decrypt_cycles, width, label='Decryption', alpha=0.8, color='lightcoral')
     
     ax2.set_xlabel('Algorithm')
     ax2.set_ylabel('Cycles per Byte')
-    ax2.set_title('Encryption vs Decryption Performance (65536 bytes)\nCycles per Byte (lower is better)')
+    ax2.set_title('Encryption vs Decryption Efficiency (65536 bytes)\nCycles per Byte (lower is better)')
     ax2.set_xticks(x)
     ax2.set_xticklabels(algorithms, rotation=45, ha='right')
     ax2.legend()
@@ -196,10 +205,11 @@ def create_performance_plot(csv_dir):
     
     plt.tight_layout()
     
-    # Save the plot
-    output_file = csv_dir.parent / f"performance_comparison_{csv_dir.name}.png"
-    plt.savefig(output_file, dpi=300, bbox_inches='tight')
-    print(f"Plot saved to: {output_file}")
+    # Save efficiency plot
+    output_file2 = csv_dir.parent / f"efficiency_comparison_{csv_dir.name}.png"
+    plt.savefig(output_file2, dpi=300, bbox_inches='tight')
+    print(f"Efficiency comparison saved to: {output_file2}")
+    plt.close()
     
     # Display summary table
     print("\nPerformance Summary (65536 bytes):")
@@ -209,8 +219,6 @@ def create_performance_plot(csv_dir):
     
     for i, alg in enumerate(algorithms):
         print(f"{alg:<20} {encrypt_gbps[i]:<15.2f} {decrypt_gbps[i]:<15.2f} {encrypt_cycles[i]:<15.3f} {decrypt_cycles[i]:<15.3f}")
-    
-    plt.close()
 
 
 def create_multi_size_plot(csv_dir):
