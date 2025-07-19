@@ -1225,7 +1225,7 @@ static inline hiae_software_DATA128b
 hiae_software_keystream_block(hiae_software_DATA128b *state, hiae_software_DATA128b M, int offset)
 {
     hiae_software_DATA128b tmp = hiae_software_XAESL(state[(P_0 + offset) % STATE], state[(P_1 + offset) % STATE]);
-    M            = hiae_software_SIMD_XOR(SIMD_XOR(tmp, M), state[(P_7 + offset) % STATE]);
+    M            = hiae_software_SIMD_XOR(hiae_software_SIMD_XOR(tmp, M), state[(P_7 + offset) % STATE]);
     return M;
 }
 
