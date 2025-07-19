@@ -346,7 +346,7 @@ static inline __M128I _MM_aesenc_si128(__M128I a, __M128I RoundKey) {
 #define _mm_storeu_si128(m,a)  vst1q_u8((uint8_t *)(m),a)
 #define _mm_xor_si128(a,b)     veorq_u8(a,b)
 #define _mm_and_si128(a,b)     vandq_u8(a,b)
-#define _mm_aesenc_si128(a,k)  vaesmcq_u8(vaeseq_u8(a,k))
+#define _mm_aesenc_si128(a,k)  veorq_u8(vaesmcq_u8(vaeseq_u8(a, vmovq_n_u8(0))), k)
 #define _mm_setzero_si128()    vmovq_n_u8(0)
 
 #endif
