@@ -1,3 +1,4 @@
 *~
 .zig-cache
 *.o
+__pycache__
