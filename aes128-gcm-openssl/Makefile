@@ -3,7 +3,15 @@ CC ?= clang
 CFLAGS ?= -O3 -march=native -std=c99
 CFLAGS += -fomit-frame-pointer -Wall -I.
 LDFLAGS ?=
-LDFLAGS += -lcrypto -lm
+LDFLAGS += -lm
+
+# Use pkg-config for OpenSSL if available
+ifneq ($(shell pkg-config --exists libcrypto && echo yes),)
+CFLAGS += $(shell pkg-config --cflags libcrypto)
+LDFLAGS += $(shell pkg-config --libs libcrypto)
+else
+LDFLAGS += -lcrypto
+endif
 
 # Source files
 SOURCES = encrypt.c

@@ -20,6 +20,14 @@ make                    # Build test and benchmark executables
 ./<algorithm>_benchmark # Run performance benchmarks
 ```
 
+**Performance Recommendation:** For optimal performance, use `clang` as your compiler:
+
+```bash
+CC=clang make
+```
+
+Clang typically produces faster cryptographic code than GCC due to better optimization of vectorized operations and loop unrolling.
+
 ## Performance Testing
 
 Benchmarks test multiple message sizes (64B to 64KB) and measure:
