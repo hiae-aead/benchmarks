@@ -108,7 +108,10 @@ ifneq ($(findstring arm,$(ARCH))$(findstring aarch64,$(ARCH)),)
 endif
 
 # Benchmark all built executables
-benchmark: all
+# Force -march=native for optimal performance benchmarks
+benchmark:
+	@echo "Building benchmarks with -march=native for optimal performance..."
+	@$(MAKE) all
 	@echo "Running benchmarks for all implementations..."
 	@for dir in $(COMMON_DIRS); do \
 		if [ -f $$dir/*_benchmark ]; then \
