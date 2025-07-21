@@ -7,7 +7,7 @@ This repository contains cryptographic benchmarking implementations for various 
 - **AEGIS-128x2** variants (AES-NI, VAES, ARM)
 - **AEGIS-128x4** (AVX-512 optimized)
 - **AES-128-GCM** (OpenSSL backend)
-- **HiAE**
+- **HiAE** variants (HiAE, HiAEx2, HiAEx4)
 - **ROCCA-S** cipher
 
 ## Quick Start
