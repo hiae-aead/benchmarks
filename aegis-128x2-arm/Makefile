@@ -8,12 +8,12 @@ ARCH := $(shell uname -m)
 # Source files
 SOURCES = encrypt.c test.c
 OBJECTS = $(SOURCES:.c=.o)
-TARGET = aegis_test
+TARGET = aegis-128x2-arm_test
 
 # Benchmark files
 BENCH_SOURCES = encrypt.c benchmark.c
 BENCH_OBJECTS = $(BENCH_SOURCES:.c=.o)
-BENCH_TARGET = aegis_benchmark
+BENCH_TARGET = aegis-128x2-arm_benchmark
 
 # Default target
 ifeq ($(findstring arm,$(ARCH))$(findstring aarch64,$(ARCH)),)

@@ -23,7 +23,7 @@ else
     ROCCA_IMPL = rocca-s_ref.c
 endif
 
-TARGET = performance_test
+TARGET = rocca-s_benchmark
 SOURCES = performance_test.c $(ROCCA_IMPL)
 
 .PHONY: all clean

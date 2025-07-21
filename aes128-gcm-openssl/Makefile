@@ -24,8 +24,8 @@ BENCHMARK_OBJECTS = $(BENCHMARK_SOURCES:.c=.o)
 TEST_OBJECTS = $(TEST_SOURCES:.c=.o)
 
 # Targets
-BENCHMARK = aes_gcm_benchmark
-TEST = aes_gcm_test
+BENCHMARK = aes128-gcm-openssl_benchmark
+TEST = aes128-gcm-openssl_test
 
 all: $(BENCHMARK) $(TEST)
 

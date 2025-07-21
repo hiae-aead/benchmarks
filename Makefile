@@ -85,24 +85,28 @@ clean:
 test: all
 	@echo "Running tests for all implementations..."
 	@for dir in $(COMMON_DIRS); do \
-		if [ -f $$dir/*_test ]; then \
+		if [ -x "$$dir/$${dir}_test" ]; then \
 			echo "Testing $$dir..."; \
-			cd $$dir && ./*_test && cd ..; \
+			cd $$dir && ./$${dir}_test && cd ..; \
+		elif [ "$$dir" = "hiae" ]; then \
+			echo "Skipping $$dir (no test executable)"; \
+		elif [ "$$dir" = "rocca-s" ]; then \
+			echo "Skipping $$dir (benchmark only)"; \
 		fi; \
 	done
 ifneq ($(findstring x86_64,$(ARCH))$(findstring amd64,$(ARCH))$(findstring i386,$(ARCH))$(findstring i686,$(ARCH)),)
 	@for dir in $(INTEL_DIRS); do \
-		if [ -f $$dir/*_test ]; then \
+		if [ -x "$$dir/$${dir}_test" ]; then \
 			echo "Testing $$dir..."; \
-			cd $$dir && ./*_test && cd ..; \
+			cd $$dir && ./$${dir}_test && cd ..; \
 		fi; \
 	done
 endif
 ifneq ($(findstring arm,$(ARCH))$(findstring aarch64,$(ARCH)),)
 	@for dir in $(ARM_DIRS); do \
-		if [ -f $$dir/*_test ]; then \
+		if [ -x "$$dir/$${dir}_test" ]; then \
 			echo "Testing $$dir..."; \
-			cd $$dir && ./*_test && cd ..; \
+			cd $$dir && ./$${dir}_test && cd ..; \
 		fi; \
 	done
 endif
@@ -114,24 +118,24 @@ benchmark:
 	@$(MAKE) all
 	@echo "Running benchmarks for all implementations..."
 	@for dir in $(COMMON_DIRS); do \
-		if [ -f $$dir/*_benchmark ]; then \
+		if [ -x "$$dir/$${dir}_benchmark" ]; then \
 			echo "Benchmarking $$dir..."; \
-			cd $$dir && ./*_benchmark && cd ..; \
+			cd $$dir && ./$${dir}_benchmark && cd ..; \
 		fi; \
 	done
 ifneq ($(findstring x86_64,$(ARCH))$(findstring amd64,$(ARCH))$(findstring i386,$(ARCH))$(findstring i686,$(ARCH)),)
 	@for dir in $(INTEL_DIRS); do \
-		if [ -f $$dir/*_benchmark ]; then \
+		if [ -x "$$dir/$${dir}_benchmark" ]; then \
 			echo "Benchmarking $$dir..."; \
-			cd $$dir && ./*_benchmark && cd ..; \
+			cd $$dir && ./$${dir}_benchmark && cd ..; \
 		fi; \
 	done
 endif
 ifneq ($(findstring arm,$(ARCH))$(findstring aarch64,$(ARCH)),)
 	@for dir in $(ARM_DIRS); do \
-		if [ -f $$dir/*_benchmark ]; then \
+		if [ -x "$$dir/$${dir}_benchmark" ]; then \
 			echo "Benchmarking $$dir..."; \
-			cd $$dir && ./*_benchmark && cd ..; \
+			cd $$dir && ./$${dir}_benchmark && cd ..; \
 		fi; \
 	done
 endif

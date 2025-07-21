@@ -14,12 +14,12 @@ LDFLAGS ?=
 # Source files
 SOURCES = encrypt.c test.c
 OBJECTS = $(SOURCES:.c=.o)
-TARGET = aegis_test
+TARGET = aegis-128x4-avx512_test
 
 # Benchmark files
 BENCH_SOURCES = encrypt.c benchmark.c
 BENCH_OBJECTS = $(BENCH_SOURCES:.c=.o)
-BENCH_TARGET = aegis_benchmark
+BENCH_TARGET = aegis-128x4-avx512_benchmark
 
 # Default target
 all: $(TARGET) $(BENCH_TARGET)
