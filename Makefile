@@ -5,12 +5,12 @@
 ARCH := $(shell uname -m)
 
 # Check compiler and warn if not using clang
-ifneq ($(CC),clang)
+ifeq ($(findstring clang,$(CC)),)
     $(info Warning: Using $(CC) compiler. For optimal performance, consider using clang: CC=clang make)
 endif
 
 # Directory list for algorithm implementations
-INTEL_DIRS = aegis-128x2-aesni aegis-128x2-vaes
+INTEL_DIRS = aegis-128x2-aesni aegis-128x2-vaes aegis-128x4-avx512
 COMMON_DIRS = aes128-gcm-openssl hiae rocca-s
 ARM_DIRS = aegis-128x2-arm
 
@@ -47,6 +47,10 @@ aegis-128x2-aesni:
 
 aegis-128x2-vaes:
 	@echo "Building AEGIS-128x2 (VAES)..."
+	@$(MAKE) -C $@ all
+
+aegis-128x4-avx512:
+	@echo "Building AEGIS-128x4 (AVX-512)..."
 	@$(MAKE) -C $@ all
 
 aes128-gcm-openssl:

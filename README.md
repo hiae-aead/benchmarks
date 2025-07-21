@@ -19,7 +19,7 @@ This repository contains cryptographic benchmarking implementations for various 
 make all
 
 # Build with optimal performance (recommended)
-CC=clang make all
+CC="clang -march=native" make all
 
 # Run all tests
 make test
@@ -45,7 +45,7 @@ make                    # Build test and benchmark executables
 **Performance Recommendation:** For optimal performance, use `clang` as your compiler:
 
 ```bash
-CC=clang make
+CC="clang -march=native" make
 ```
 
 Clang typically produces faster cryptographic code than GCC due to better optimization of vectorized operations and loop unrolling.
@@ -58,6 +58,7 @@ The build system automatically detects your architecture and builds appropriate 
 - **ARM64**: AEGIS-128x2 (ARM crypto extensions), AES-128-GCM, HiAE, ROCCA-S
 
 Note: Some implementations require specific CPU features:
+
 - AEGIS-128x2-aesni: AES-NI, AVX
 - AEGIS-128x2-vaes: AES-NI, AVX2, VAES
 - AEGIS-128x4-avx512: AVX-512F, VAES
@@ -66,6 +67,62 @@ Note: Some implementations require specific CPU features:
 ## Performance Testing
 
 Benchmarks test multiple message sizes (16B to 64KB) and measure:
+
 - Throughput (Gbps/Mbps)
 - Cycles per byte
 - Cross-platform performance characteristics
+
+### Running Benchmarks
+
+```bash
+# Run all benchmarks
+make benchmark
+
+# Run individual benchmark
+cd <algorithm-directory>
+./<algorithm>_benchmark
+
+# Generate CSV output for analysis
+./<algorithm>_benchmark > results.csv
+```
+
+## Benchmark Visualization
+
+The repository includes a Python tool for visualizing benchmark results:
+
+```bash
+cd benchmark-visualizer
+pip install pandas matplotlib numpy  # or: uv sync
+python plot_performance.py path/to/csv/files/
+```
+
+This generates comparative plots for:
+
+- Throughput comparison across algorithms
+- Efficiency (cycles per byte) analysis
+- Performance trends across message sizes
+
+## Algorithm-Specific Notes
+
+### HiAE
+
+Automatically selects the best backend based on CPU capabilities:
+
+- AES-NI backend for Intel processors
+- ARM crypto backend for ARM processors
+- VAES AVX-512 backend for AVX-512 capable processors
+- Software fallback for other architectures
+
+### ROCCA-S
+
+Performance test implementation only (no standard AEAD interface). Includes optimized implementations for both ARM and x86.
+
+## Dependencies
+
+- C compiler (clang recommended for performance)
+- OpenSSL development libraries (for AES-GCM)
+- Python 3.x with pandas, matplotlib, numpy (for visualization tools)
+
+## Contributing
+
+When adding new algorithms, follow the existing directory structure and implement the standard AEAD interface defined in `crypto_aead.h`.
