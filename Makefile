@@ -17,7 +17,7 @@ ARM_DIRS = aegis-128x2-arm
 # Check for OpenSSL availability
 OPENSSL_AVAILABLE := $(shell pkg-config --exists libcrypto && echo yes)
 
-.PHONY: all clean help $(INTEL_DIRS) $(COMMON_DIRS) $(ARM_DIRS)
+.PHONY: all clean help benchmark benchmark-csv $(INTEL_DIRS) $(COMMON_DIRS) $(ARM_DIRS)
 
 all: build-common build-intel build-arm
 
@@ -148,16 +148,55 @@ ifneq ($(findstring arm,$(ARCH))$(findstring aarch64,$(ARCH)),)
 	done
 endif
 
+# Run benchmarks with CSV output and save results
+benchmark-csv:
+	@echo "Building benchmarks with -march=native for optimal performance..."
+	@$(MAKE) all
+	@CSV_DIR="benchmark-results-$$(date +%Y%m%d-%H%M%S)"; \
+	echo "Creating directory $$CSV_DIR for CSV results..."; \
+	mkdir -p $$CSV_DIR; \
+	echo "Running benchmarks with CSV output..."; \
+	for dir in $(COMMON_DIRS); do \
+		if [ -x "$$dir/$${dir}_benchmark" ]; then \
+			echo "Benchmarking $$dir (CSV)..."; \
+			cd $$dir && ./$${dir}_benchmark --csv > ../$$CSV_DIR/$${dir}.csv && cd ..; \
+			echo "  Saved to $$CSV_DIR/$${dir}.csv"; \
+		fi; \
+	done; \
+	ARCH_CHECK="$(findstring x86_64,$(ARCH))$(findstring amd64,$(ARCH))$(findstring i386,$(ARCH))$(findstring i686,$(ARCH))"; \
+	if [ -n "$$ARCH_CHECK" ]; then \
+		for dir in $(INTEL_DIRS); do \
+			if [ -x "$$dir/$${dir}_benchmark" ]; then \
+				echo "Benchmarking $$dir (CSV)..."; \
+				cd $$dir && ./$${dir}_benchmark --csv > ../$$CSV_DIR/$${dir}.csv && cd ..; \
+				echo "  Saved to $$CSV_DIR/$${dir}.csv"; \
+			fi; \
+		done; \
+	fi; \
+	ARM_CHECK="$(findstring arm,$(ARCH))$(findstring aarch64,$(ARCH))"; \
+	if [ -n "$$ARM_CHECK" ]; then \
+		for dir in $(ARM_DIRS); do \
+			if [ -x "$$dir/$${dir}_benchmark" ]; then \
+				echo "Benchmarking $$dir (CSV)..."; \
+				cd $$dir && ./$${dir}_benchmark --csv > ../$$CSV_DIR/$${dir}.csv && cd ..; \
+				echo "  Saved to $$CSV_DIR/$${dir}.csv"; \
+			fi; \
+		done; \
+	fi; \
+	echo ""; \
+	echo "All CSV results saved to $$CSV_DIR/"
+
 # Help target
 help:
 	@echo "IETF Cryptographic Benchmarks Build System"
 	@echo ""
 	@echo "Available targets:"
-	@echo "  all         - Build all available implementations"
-	@echo "  clean       - Clean all build artifacts"
-	@echo "  test        - Run tests for all built implementations"
-	@echo "  benchmark   - Run benchmarks for all built implementations"
-	@echo "  help        - Show this help message"
+	@echo "  all            - Build all available implementations"
+	@echo "  clean          - Clean all build artifacts"
+	@echo "  test           - Run tests for all built implementations"
+	@echo "  benchmark      - Run benchmarks for all built implementations"
+	@echo "  benchmark-csv  - Run benchmarks with CSV output to timestamped directory"
+	@echo "  help           - Show this help message"
 	@echo ""
 	@echo "Individual algorithm targets:"
 	@echo "  aegis-128x2-aesni    - AEGIS-128x2 with AES-NI"
