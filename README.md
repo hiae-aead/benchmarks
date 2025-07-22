@@ -86,6 +86,36 @@ cd <algorithm-directory>
 ./<algorithm>_benchmark > results.csv
 ```
 
+## Performance Results
+
+### Apple Silicon M4
+
+<p align="center">
+  <img src=".media/m4/throughput_comparison_csvs-m4.png" width="600" alt="M4 Throughput Comparison">
+</p>
+
+<p align="center">
+  <img src=".media/m4/encryption_throughput_csvs-m4.png" width="600" alt="M4 Encryption Throughput">
+</p>
+
+<p align="center">
+  <img src=".media/m4/decryption_throughput_csvs-m4.png" width="600" alt="M4 Decryption Throughput">
+</p>
+
+### AMD Zen 4
+
+<p align="center">
+  <img src=".media/zen4/throughput_comparison_csvs-zen4-subset.png" width="600" alt="Zen 4 Throughput Comparison">
+</p>
+
+<p align="center">
+  <img src=".media/zen4/encryption_throughput_csvs-zen4-subset.png" width="600" alt="Zen 4 Encryption Throughput">
+</p>
+
+<p align="center">
+  <img src=".media/zen4/decryption_throughput_csvs-zen4-subset.png" width="600" alt="Zen 4 Decryption Throughput">
+</p>
+
 ## Benchmark Visualization
 
 The repository includes a Python tool for visualizing benchmark results:
