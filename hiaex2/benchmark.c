@@ -7,8 +7,8 @@
 #include <time.h>
 
 #define BASE_ITERATIONS  10000
-#define WARMUP_TIME      0.25
-#define COMPUTATION_TIME 1.0
+#define WARMUP_TIME      0.5
+#define COMPUTATION_TIME 3.0
 #define NUM_MEASUREMENTS 5
 
 const int len_test_case = 11;

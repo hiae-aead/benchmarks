@@ -9,8 +9,8 @@
 #include <time.h>
 
 #define BASE_ITERATIONS  10000
-#define WARMUP_TIME      0.25 // 0.25s warmup
-#define COMPUTATION_TIME 1.0  // 1s computation time for measurements
+#define WARMUP_TIME      0.5 // 0.5s warmup
+#define COMPUTATION_TIME 3.0  // 3s computation time for measurements
 #define NUM_MEASUREMENTS 5    // Number of measurement runs
 
 const int len_test_case = 11;
