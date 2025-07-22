@@ -11,7 +11,7 @@ endif
 
 # Directory list for algorithm implementations
 INTEL_DIRS = aegis-128x2-aesni aegis-128x2-vaes aegis-128x4-avx512
-COMMON_DIRS = aes128-gcm-openssl hiae rocca-s
+COMMON_DIRS = aes128-gcm-openssl hiae hiaex2 hiaex4 rocca-s
 ARM_DIRS = aegis-128x2-arm
 
 # Check for OpenSSL availability
@@ -63,6 +63,14 @@ endif
 
 hiae:
 	@echo "Building HiAE..."
+	@$(MAKE) -C $@ all
+
+hiaex2:
+	@echo "Building HiAEx2..."
+	@$(MAKE) -C $@ all
+
+hiaex4:
+	@echo "Building HiAEx4..."
 	@$(MAKE) -C $@ all
 
 rocca-s:
@@ -157,6 +165,8 @@ help:
 	@echo "  aegis-128x2-arm      - AEGIS-128x2 for ARM (ARM only)"
 	@echo "  aes128-gcm-openssl   - AES-128-GCM with OpenSSL"
 	@echo "  hiae                 - HiAE algorithm"
+	@echo "  hiaex2               - HiAEx2 algorithm"
+	@echo "  hiaex4               - HiAEx4 algorithm"
 	@echo "  rocca-s              - ROCCA-S stream cipher"
 	@echo ""
 	@echo "Architecture: $(ARCH)"

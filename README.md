@@ -54,8 +54,8 @@ Clang typically produces faster cryptographic code than GCC due to better optimi
 
 The build system automatically detects your architecture and builds appropriate implementations:
 
-- **x86_64/Intel**: AEGIS-128x2 (AES-NI, VAES), AEGIS-128x4 (AVX-512), AES-128-GCM, HiAE, ROCCA-S
-- **ARM64**: AEGIS-128x2 (ARM crypto extensions), AES-128-GCM, HiAE, ROCCA-S
+- **x86_64/Intel**: AEGIS-128x2 (AES-NI, VAES), AEGIS-128x4 (AVX-512), AES-128-GCM, HiAE, HiAEx2, HiAEx4, ROCCA-S
+- **ARM64**: AEGIS-128x2 (ARM crypto extensions), AES-128-GCM, HiAE, HiAEx2, HiAEx4, ROCCA-S
 
 Note: Some implementations require specific CPU features:
 
@@ -131,21 +131,6 @@ This generates comparative plots for:
 - Throughput comparison across algorithms
 - Efficiency (cycles per byte) analysis
 - Performance trends across message sizes
-
-## Algorithm-Specific Notes
-
-### HiAE
-
-Automatically selects the best backend based on CPU capabilities:
-
-- AES-NI backend for Intel processors
-- ARM crypto backend for ARM processors
-- VAES AVX-512 backend for AVX-512 capable processors
-- Software fallback for other architectures
-
-### ROCCA-S
-
-Performance test implementation only (no standard AEAD interface). Includes optimized implementations for both ARM and x86.
 
 ## Dependencies
 
