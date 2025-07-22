@@ -73,7 +73,7 @@ speed_test_encode_work(size_t len, int aead_mode)
     }
     memset(msg, 0x1, len);
 
-    timer_t warmup_timer;
+    hiae_timer_t warmup_timer;
     timer_start(&warmup_timer);
     size_t warmup_iterations = 0;
 
@@ -96,7 +96,7 @@ speed_test_encode_work(size_t len, int aead_mode)
     }
 
     for (int i = 0; i < NUM_MEASUREMENTS; i++) {
-        timer_t timer;
+        hiae_timer_t timer;
         timer_start(&timer);
 
         for (size_t iter = 0; iter < iterations_per_measurement; iter++) {
@@ -166,7 +166,7 @@ speed_test_decode_work(size_t len, int aead_mode)
     unsigned long long clen;
     crypto_aead_encrypt(ct, &clen, msg, len, ad, ad_len, NULL, nonce, key);
 
-    timer_t warmup_timer;
+    hiae_timer_t warmup_timer;
     timer_start(&warmup_timer);
     size_t warmup_iterations = 0;
 
@@ -190,7 +190,7 @@ speed_test_decode_work(size_t len, int aead_mode)
     }
 
     for (int i = 0; i < NUM_MEASUREMENTS; i++) {
-        timer_t timer;
+        hiae_timer_t timer;
         timer_start(&timer);
 
         for (size_t iter = 0; iter < iterations_per_measurement; iter++) {
@@ -352,7 +352,7 @@ main(int argc, char *argv[])
     }
 
     double  timer_resolution = 1.0;
-    timer_t res_timer;
+    hiae_timer_t res_timer;
     for (int i = 0; i < 100; i++) {
         timer_start(&res_timer);
         timer_stop(&res_timer);

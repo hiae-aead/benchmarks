@@ -38,7 +38,7 @@ typedef struct {
     uint64_t start_cycles;
     uint64_t end_cycles;
     int      has_cycles;
-} timer_t;
+} hiae_timer_t;
 
 typedef struct {
     double *values;
@@ -127,7 +127,7 @@ has_cycle_counter(void)
 }
 
 static inline void
-timer_start(timer_t *timer)
+timer_start(hiae_timer_t *timer)
 {
     timer->has_cycles = has_cycle_counter();
     if (timer->has_cycles) {
@@ -139,7 +139,7 @@ timer_start(timer_t *timer)
 }
 
 static inline void
-timer_stop(timer_t *timer)
+timer_stop(hiae_timer_t *timer)
 {
     timer->end_time = get_time();
     if (timer->has_cycles) {
@@ -148,13 +148,13 @@ timer_stop(timer_t *timer)
 }
 
 static inline double
-timer_elapsed_seconds(const timer_t *timer)
+timer_elapsed_seconds(const hiae_timer_t *timer)
 {
     return timer->end_time - timer->start_time;
 }
 
 static inline uint64_t
-timer_elapsed_cycles(const timer_t *timer)
+timer_elapsed_cycles(const hiae_timer_t *timer)
 {
     if (!timer->has_cycles)
         return 0;
@@ -172,7 +172,7 @@ get_cpu_frequency(void)
     int       valid_measurements = 0;
 
     for (int i = 0; i < iterations; i++) {
-        timer_t timer;
+        hiae_timer_t timer;
 
         double target_time = 0.01;
         timer_start(&timer);
