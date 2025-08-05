@@ -54,8 +54,8 @@ Clang typically produces faster cryptographic code than GCC due to better optimi
 
 The build system automatically detects your architecture and builds appropriate implementations:
 
-- **x86_64/Intel**: AEGIS-128x2 (AES-NI, VAES), AEGIS-128x4 (AVX-512), AES-128-GCM, HiAE, ROCCA-S
-- **ARM64**: AEGIS-128x2 (ARM crypto extensions), AES-128-GCM, HiAE, ROCCA-S
+- **x86_64/Intel**: AEGIS-128x2 (AES-NI, VAES), AEGIS-128x4 (AVX-512), AES-128-GCM, HiAE, HiAEx2, HiAEx4, ROCCA-S
+- **ARM64**: AEGIS-128x2 (ARM crypto extensions), AES-128-GCM, HiAE, HiAEx2, HiAEx4, ROCCA-S
 
 Note: Some implementations require specific CPU features:
 
@@ -86,6 +86,36 @@ cd <algorithm-directory>
 ./<algorithm>_benchmark > results.csv
 ```
 
+## Performance Results
+
+### Apple Silicon M4
+
+<p align="center">
+  <img src=".media/m4/throughput_comparison_m4.png" width="600" alt="M4 Decryption Throughput">
+</p>
+
+<p align="center">
+  <img src=".media/m4/encryption_throughput_m4.png" width="600" alt="M4 Throughput Comparison">
+</p>
+
+<p align="center">
+  <img src=".media/m4/decryption_throughput_m4.png" width="600" alt="M4 Encryption Throughput">
+</p>
+
+### AMD Zen 4
+
+<p align="center">
+  <img src=".media/zen4/throughput_comparison_.png" width="600" alt="Zen 4 Throughput Comparison">
+</p>
+
+<p align="center">
+  <img src=".media/zen4/encryption_throughput_.png" width="600" alt="Zen 4 Encryption Throughput">
+</p>
+
+<p align="center">
+  <img src=".media/zen4/decryption_throughput_.png" width="600" alt="Zen 4 Decryption Throughput">
+</p>
+
 ## Benchmark Visualization
 
 The repository includes a Python tool for visualizing benchmark results:
@@ -101,21 +131,6 @@ This generates comparative plots for:
 - Throughput comparison across algorithms
 - Efficiency (cycles per byte) analysis
 - Performance trends across message sizes
-
-## Algorithm-Specific Notes
-
-### HiAE
-
-Automatically selects the best backend based on CPU capabilities:
-
-- AES-NI backend for Intel processors
-- ARM crypto backend for ARM processors
-- VAES AVX-512 backend for AVX-512 capable processors
-- Software fallback for other architectures
-
-### ROCCA-S
-
-Performance test implementation only (no standard AEAD interface). Includes optimized implementations for both ARM and x86.
 
 ## Dependencies
 

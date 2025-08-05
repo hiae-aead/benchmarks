@@ -15,16 +15,8 @@ else ifeq ($(ARCH),aarch64)
 else
     CFLAGS += -march=native
 endif
-ifeq ($(ARCH),arm64)
-    ROCCA_IMPL = rocca-s_arm.c
-else ifeq ($(ARCH),aarch64)
-    ROCCA_IMPL = rocca-s_arm.c
-else
-    ROCCA_IMPL = rocca-s_ref.c
-endif
-
 TARGET = rocca-s_benchmark
-SOURCES = performance_test.c $(ROCCA_IMPL)
+SOURCES = performance_test.c rocca-s.c
 
 .PHONY: all clean
 

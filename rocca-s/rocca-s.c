@@ -1,10 +1,12 @@
 #include <memory.h>
 #if defined(__ARM_FEATURE_CRYPTO)
 # include <arm_neon.h>
+#elif defined(__x86_64__) && defined(__AES__)
+# include <immintrin.h>
 #endif
 #include "rocca-s.h"
 
-#if ! defined(__ARM_FEATURE_CRYPTO)
+#if !(defined(__AES__) || defined(__ARM_FEATURE_CRYPTO))
 static const uint32_t TE0[256] = {
     0xc66363a5, 0xf87c7c84, 0xee777799, 0xf67b7b8d,
     0xfff2f20d, 0xd66b6bbd, 0xde6f6fb1, 0x91c5c554,
@@ -339,7 +341,8 @@ static inline __M128I _MM_aesenc_si128(__M128I a, __M128I RoundKey) {
 #define _mm_and_si128(a,b)     _MM_and_si128(a,b)
 #define _mm_aesenc_si128(a,k)  _MM_aesenc_si128(a,k)
 #define _mm_setzero_si128()    _MM_setzero_si128()
-#else
+
+#elif defined(__ARM_FEATURE_CRYPTO)
 
 #define __m128i                uint8x16_t
 #define _mm_loadu_si128(m)     vld1q_u8((const uint8_t *)(m))

@@ -17,10 +17,10 @@ size_t    test_case[11] = { 65536, 32768, 16384, 8192, 4096, 2048, 1024, 512, 25
 static int csv_output = 0;
 
 typedef struct {
-    double        gbps;
-    double        mbps;
-    double        cycles_per_byte;
-    aegis_stats_t *stats;
+    double   gbps;
+    double   mbps;
+    double   cycles_per_byte;
+    stats_t *stats;
 } perf_result_t;
 
 static size_t
@@ -54,7 +54,7 @@ speed_test_encode_work(size_t len, int aead_mode)
     size_t   ad_len = aead_mode ? 48 : 0;
     uint8_t *ad     = NULL;
     if (ad_len > 0) {
-        ad = aegis_aligned_alloc(16, ad_len);
+        ad = aligned_alloc_wrapper(16, ad_len);
         if (!ad) {
             fprintf(stderr, "Failed to allocate AD memory\n");
             return result;
@@ -62,70 +62,70 @@ speed_test_encode_work(size_t len, int aead_mode)
         memset(ad, 1, ad_len);
     }
 
-    uint8_t *msg = aegis_aligned_alloc(16, len);
-    uint8_t *ct  = aegis_aligned_alloc(16, len + CRYPTO_ABYTES);
+    uint8_t *msg = aligned_alloc_wrapper(16, len);
+    uint8_t *ct  = aligned_alloc_wrapper(16, len + CRYPTO_ABYTES);
     if (!msg || !ct) {
         fprintf(stderr, "Failed to allocate memory\n");
-        aegis_aligned_free(ad);
-        aegis_aligned_free(msg);
-        aegis_aligned_free(ct);
+        aligned_free_wrapper(ad);
+        aligned_free_wrapper(msg);
+        aligned_free_wrapper(ct);
         return result;
     }
     memset(msg, 0x1, len);
 
-    aegis_timer_t warmup_timer;
-    aegis_timer_start(&warmup_timer);
+    hiae_timer_t warmup_timer;
+    timer_start(&warmup_timer);
     size_t warmup_iterations = 0;
 
     do {
         unsigned long long clen;
         crypto_aead_encrypt(ct, &clen, msg, len, ad, ad_len, NULL, nonce, key);
         warmup_iterations++;
-        aegis_timer_stop(&warmup_timer);
-    } while (aegis_timer_elapsed_seconds(&warmup_timer) < WARMUP_TIME);
+        timer_stop(&warmup_timer);
+    } while (timer_elapsed_seconds(&warmup_timer) < WARMUP_TIME);
 
-    double warmup_time                = aegis_timer_elapsed_seconds(&warmup_timer);
+    double warmup_time                = timer_elapsed_seconds(&warmup_timer);
     size_t iterations_per_measurement = calculate_iterations(warmup_time, warmup_iterations);
 
-    result.stats = aegis_stats_create(NUM_MEASUREMENTS);
+    result.stats = stats_create(NUM_MEASUREMENTS);
     if (!result.stats) {
-        aegis_aligned_free(ad);
-        aegis_aligned_free(msg);
-        aegis_aligned_free(ct);
+        aligned_free_wrapper(ad);
+        aligned_free_wrapper(msg);
+        aligned_free_wrapper(ct);
         return result;
     }
 
     for (int i = 0; i < NUM_MEASUREMENTS; i++) {
-        aegis_timer_t timer;
-        aegis_timer_start(&timer);
+        hiae_timer_t timer;
+        timer_start(&timer);
 
         for (size_t iter = 0; iter < iterations_per_measurement; iter++) {
             unsigned long long clen;
             crypto_aead_encrypt(ct, &clen, msg, len, ad, ad_len, NULL, nonce, key);
         }
 
-        aegis_timer_stop(&timer);
+        timer_stop(&timer);
 
-        double elapsed    = aegis_timer_elapsed_seconds(&timer);
+        double elapsed    = timer_elapsed_seconds(&timer);
         double throughput = ((double) iterations_per_measurement * len) / elapsed;
-        aegis_stats_add(result.stats, throughput);
+        stats_add(result.stats, throughput);
     }
 
-    aegis_stats_compute(result.stats);
+    stats_compute(result.stats);
 
     result.mbps = result.stats->median / (1024.0 * 1024.0);
     result.gbps = (result.stats->median * 8.0) / 1e9;
 
-    if (aegis_has_cycle_counter()) {
-        double cpu_freq = aegis_get_cpu_frequency();
+    if (has_cycle_counter()) {
+        double cpu_freq = get_cpu_frequency();
         if (cpu_freq > 0) {
             result.cycles_per_byte = cpu_freq / result.stats->median;
         }
     }
 
-    aegis_aligned_free(ad);
-    aegis_aligned_free(msg);
-    aegis_aligned_free(ct);
+    aligned_free_wrapper(ad);
+    aligned_free_wrapper(msg);
+    aligned_free_wrapper(ct);
     return result;
 }
 
@@ -142,7 +142,7 @@ speed_test_decode_work(size_t len, int aead_mode)
     size_t   ad_len = aead_mode ? 48 : 0;
     uint8_t *ad     = NULL;
     if (ad_len > 0) {
-        ad = aegis_aligned_alloc(16, ad_len);
+        ad = aligned_alloc_wrapper(16, ad_len);
         if (!ad) {
             fprintf(stderr, "Failed to allocate AD memory\n");
             return result;
@@ -150,15 +150,15 @@ speed_test_decode_work(size_t len, int aead_mode)
         memset(ad, 1, ad_len);
     }
 
-    uint8_t *msg = aegis_aligned_alloc(16, len);
-    uint8_t *ct  = aegis_aligned_alloc(16, len + CRYPTO_ABYTES);
-    uint8_t *dec = aegis_aligned_alloc(16, len);
+    uint8_t *msg = aligned_alloc_wrapper(16, len);
+    uint8_t *ct  = aligned_alloc_wrapper(16, len + CRYPTO_ABYTES);
+    uint8_t *dec = aligned_alloc_wrapper(16, len);
     if (!msg || !ct || !dec) {
         fprintf(stderr, "Failed to allocate memory\n");
-        aegis_aligned_free(ad);
-        aegis_aligned_free(msg);
-        aegis_aligned_free(ct);
-        aegis_aligned_free(dec);
+        aligned_free_wrapper(ad);
+        aligned_free_wrapper(msg);
+        aligned_free_wrapper(ct);
+        aligned_free_wrapper(dec);
         return result;
     }
     memset(msg, 0x1, len);
@@ -166,61 +166,61 @@ speed_test_decode_work(size_t len, int aead_mode)
     unsigned long long clen;
     crypto_aead_encrypt(ct, &clen, msg, len, ad, ad_len, NULL, nonce, key);
 
-    aegis_timer_t warmup_timer;
-    aegis_timer_start(&warmup_timer);
+    hiae_timer_t warmup_timer;
+    timer_start(&warmup_timer);
     size_t warmup_iterations = 0;
 
     do {
         unsigned long long mlen;
         crypto_aead_decrypt(dec, &mlen, NULL, ct, clen, ad, ad_len, nonce, key);
         warmup_iterations++;
-        aegis_timer_stop(&warmup_timer);
-    } while (aegis_timer_elapsed_seconds(&warmup_timer) < WARMUP_TIME);
+        timer_stop(&warmup_timer);
+    } while (timer_elapsed_seconds(&warmup_timer) < WARMUP_TIME);
 
-    double warmup_time                = aegis_timer_elapsed_seconds(&warmup_timer);
+    double warmup_time                = timer_elapsed_seconds(&warmup_timer);
     size_t iterations_per_measurement = calculate_iterations(warmup_time, warmup_iterations);
 
-    result.stats = aegis_stats_create(NUM_MEASUREMENTS);
+    result.stats = stats_create(NUM_MEASUREMENTS);
     if (!result.stats) {
-        aegis_aligned_free(ad);
-        aegis_aligned_free(msg);
-        aegis_aligned_free(ct);
-        aegis_aligned_free(dec);
+        aligned_free_wrapper(ad);
+        aligned_free_wrapper(msg);
+        aligned_free_wrapper(ct);
+        aligned_free_wrapper(dec);
         return result;
     }
 
     for (int i = 0; i < NUM_MEASUREMENTS; i++) {
-        aegis_timer_t timer;
-        aegis_timer_start(&timer);
+        hiae_timer_t timer;
+        timer_start(&timer);
 
         for (size_t iter = 0; iter < iterations_per_measurement; iter++) {
             unsigned long long mlen;
             crypto_aead_decrypt(dec, &mlen, NULL, ct, clen, ad, ad_len, nonce, key);
         }
 
-        aegis_timer_stop(&timer);
+        timer_stop(&timer);
 
-        double elapsed    = aegis_timer_elapsed_seconds(&timer);
+        double elapsed    = timer_elapsed_seconds(&timer);
         double throughput = ((double) iterations_per_measurement * len) / elapsed;
-        aegis_stats_add(result.stats, throughput);
+        stats_add(result.stats, throughput);
     }
 
-    aegis_stats_compute(result.stats);
+    stats_compute(result.stats);
 
     result.mbps = result.stats->median / (1024.0 * 1024.0);
     result.gbps = (result.stats->median * 8.0) / 1e9;
 
-    if (aegis_has_cycle_counter()) {
-        double cpu_freq = aegis_get_cpu_frequency();
+    if (has_cycle_counter()) {
+        double cpu_freq = get_cpu_frequency();
         if (cpu_freq > 0) {
             result.cycles_per_byte = cpu_freq / result.stats->median;
         }
     }
 
-    aegis_aligned_free(ad);
-    aegis_aligned_free(msg);
-    aegis_aligned_free(ct);
-    aegis_aligned_free(dec);
+    aligned_free_wrapper(ad);
+    aligned_free_wrapper(msg);
+    aligned_free_wrapper(ct);
+    aligned_free_wrapper(dec);
     return result;
 }
 
@@ -279,8 +279,8 @@ speed_test_encryption(void)
         print_result("encrypt", test_case[i], &enc_result);
         print_result("decrypt", test_case[i], &dec_result);
 
-        aegis_stats_destroy(enc_result.stats);
-        aegis_stats_destroy(dec_result.stats);
+        stats_destroy(enc_result.stats);
+        stats_destroy(dec_result.stats);
 
         if (!csv_output && i < len_test_case - 1) {
             printf("---------|------------|----------|----------|--------|-------\n");
@@ -307,8 +307,8 @@ speed_test_aead(void)
         print_result("encrypt", test_case[i], &enc_result);
         print_result("decrypt", test_case[i], &dec_result);
 
-        aegis_stats_destroy(enc_result.stats);
-        aegis_stats_destroy(dec_result.stats);
+        stats_destroy(enc_result.stats);
+        stats_destroy(dec_result.stats);
 
         if (!csv_output && i < len_test_case - 1) {
             printf("---------|------------|----------|----------|--------|-------\n");
@@ -342,21 +342,21 @@ main(int argc, char *argv[])
     }
 
     if (csv_output) {
-        printf("# AEGIS-128x2 Performance Test\n");
-        printf("# Implementation: Intel VAES optimized\n");
+        printf("# HiAEx4 Performance Test\n");
+        printf("# Implementation: Runtime CPU feature detection\n");
     } else {
         printf("=============================================================\n");
-        printf("                AEGIS-128x2 Performance Test                \n");
+        printf("                   HiAEx4 Performance Test                   \n");
         printf("=============================================================\n");
-        printf("Implementation: Intel VAES optimized\n");
+        printf("Implementation: Runtime CPU feature detection\n");
     }
 
-    double       timer_resolution = 1.0;
-    aegis_timer_t res_timer;
+    double  timer_resolution = 1.0;
+    hiae_timer_t res_timer;
     for (int i = 0; i < 100; i++) {
-        aegis_timer_start(&res_timer);
-        aegis_timer_stop(&res_timer);
-        double elapsed = aegis_timer_elapsed_seconds(&res_timer);
+        timer_start(&res_timer);
+        timer_stop(&res_timer);
+        double elapsed = timer_elapsed_seconds(&res_timer);
         if (elapsed > 0 && elapsed < timer_resolution) {
             timer_resolution = elapsed;
         }
@@ -364,8 +364,8 @@ main(int argc, char *argv[])
     if (csv_output) {
         printf("# Timer resolution: ~%.2f ns\n", timer_resolution * 1e9);
 
-        if (aegis_has_cycle_counter()) {
-            double cpu_freq = aegis_get_cpu_frequency();
+        if (has_cycle_counter()) {
+            double cpu_freq = get_cpu_frequency();
             if (cpu_freq > 0) {
                 printf("# CPU frequency: ~%.2f GHz\n", cpu_freq / 1e9);
             }
@@ -373,8 +373,8 @@ main(int argc, char *argv[])
     } else {
         printf("Timer resolution: ~%.2f ns\n", timer_resolution * 1e9);
 
-        if (aegis_has_cycle_counter()) {
-            double cpu_freq = aegis_get_cpu_frequency();
+        if (has_cycle_counter()) {
+            double cpu_freq = get_cpu_frequency();
             if (cpu_freq > 0) {
                 printf("CPU frequency: ~%.2f GHz\n", cpu_freq / 1e9);
             }

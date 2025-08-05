@@ -11,13 +11,13 @@ endif
 
 # Directory list for algorithm implementations
 INTEL_DIRS = aegis-128x2-aesni aegis-128x2-vaes aegis-128x4-avx512
-COMMON_DIRS = aes128-gcm-openssl hiae rocca-s
+COMMON_DIRS = aes128-gcm-openssl hiae hiaex2 hiaex4 rocca-s
 ARM_DIRS = aegis-128x2-arm
 
 # Check for OpenSSL availability
 OPENSSL_AVAILABLE := $(shell pkg-config --exists libcrypto && echo yes)
 
-.PHONY: all clean help $(INTEL_DIRS) $(COMMON_DIRS) $(ARM_DIRS)
+.PHONY: all clean help benchmark benchmark-csv $(INTEL_DIRS) $(COMMON_DIRS) $(ARM_DIRS)
 
 all: build-common build-intel build-arm
 
@@ -63,6 +63,14 @@ endif
 
 hiae:
 	@echo "Building HiAE..."
+	@$(MAKE) -C $@ all
+
+hiaex2:
+	@echo "Building HiAEx2..."
+	@$(MAKE) -C $@ all
+
+hiaex4:
+	@echo "Building HiAEx4..."
 	@$(MAKE) -C $@ all
 
 rocca-s:
@@ -140,16 +148,55 @@ ifneq ($(findstring arm,$(ARCH))$(findstring aarch64,$(ARCH)),)
 	done
 endif
 
+# Run benchmarks with CSV output and save results
+benchmark-csv:
+	@echo "Building benchmarks with -march=native for optimal performance..."
+	@$(MAKE) all
+	@CSV_DIR="benchmark-results-$$(date +%Y%m%d-%H%M%S)"; \
+	echo "Creating directory $$CSV_DIR for CSV results..."; \
+	mkdir -p $$CSV_DIR; \
+	echo "Running benchmarks with CSV output..."; \
+	for dir in $(COMMON_DIRS); do \
+		if [ -x "$$dir/$${dir}_benchmark" ]; then \
+			echo "Benchmarking $$dir (CSV)..."; \
+			cd $$dir && ./$${dir}_benchmark --csv > ../$$CSV_DIR/$${dir}.csv && cd ..; \
+			echo "  Saved to $$CSV_DIR/$${dir}.csv"; \
+		fi; \
+	done; \
+	ARCH_CHECK="$(findstring x86_64,$(ARCH))$(findstring amd64,$(ARCH))$(findstring i386,$(ARCH))$(findstring i686,$(ARCH))"; \
+	if [ -n "$$ARCH_CHECK" ]; then \
+		for dir in $(INTEL_DIRS); do \
+			if [ -x "$$dir/$${dir}_benchmark" ]; then \
+				echo "Benchmarking $$dir (CSV)..."; \
+				cd $$dir && ./$${dir}_benchmark --csv > ../$$CSV_DIR/$${dir}.csv && cd ..; \
+				echo "  Saved to $$CSV_DIR/$${dir}.csv"; \
+			fi; \
+		done; \
+	fi; \
+	ARM_CHECK="$(findstring arm,$(ARCH))$(findstring aarch64,$(ARCH))"; \
+	if [ -n "$$ARM_CHECK" ]; then \
+		for dir in $(ARM_DIRS); do \
+			if [ -x "$$dir/$${dir}_benchmark" ]; then \
+				echo "Benchmarking $$dir (CSV)..."; \
+				cd $$dir && ./$${dir}_benchmark --csv > ../$$CSV_DIR/$${dir}.csv && cd ..; \
+				echo "  Saved to $$CSV_DIR/$${dir}.csv"; \
+			fi; \
+		done; \
+	fi; \
+	echo ""; \
+	echo "All CSV results saved to $$CSV_DIR/"
+
 # Help target
 help:
 	@echo "IETF Cryptographic Benchmarks Build System"
 	@echo ""
 	@echo "Available targets:"
-	@echo "  all         - Build all available implementations"
-	@echo "  clean       - Clean all build artifacts"
-	@echo "  test        - Run tests for all built implementations"
-	@echo "  benchmark   - Run benchmarks for all built implementations"
-	@echo "  help        - Show this help message"
+	@echo "  all            - Build all available implementations"
+	@echo "  clean          - Clean all build artifacts"
+	@echo "  test           - Run tests for all built implementations"
+	@echo "  benchmark      - Run benchmarks for all built implementations"
+	@echo "  benchmark-csv  - Run benchmarks with CSV output to timestamped directory"
+	@echo "  help           - Show this help message"
 	@echo ""
 	@echo "Individual algorithm targets:"
 	@echo "  aegis-128x2-aesni    - AEGIS-128x2 with AES-NI"
@@ -157,6 +204,8 @@ help:
 	@echo "  aegis-128x2-arm      - AEGIS-128x2 for ARM (ARM only)"
 	@echo "  aes128-gcm-openssl   - AES-128-GCM with OpenSSL"
 	@echo "  hiae                 - HiAE algorithm"
+	@echo "  hiaex2               - HiAEx2 algorithm"
+	@echo "  hiaex4               - HiAEx4 algorithm"
 	@echo "  rocca-s              - ROCCA-S stream cipher"
 	@echo ""
 	@echo "Architecture: $(ARCH)"
