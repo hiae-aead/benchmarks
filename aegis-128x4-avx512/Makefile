@@ -1,15 +1,18 @@
 # Allow overriding compiler and flags from command line
 CC ?= clang
+CFLAGS ?= -O3 -march=native
+LDFLAGS ?=
+
 # Detect architecture and set appropriate flags
 ARCH := $(shell uname -m)
-CFLAGS ?= -O3 -march=native -std=c99
 ifeq ($(ARCH),x86_64)
     CFLAGS += -mavx512f -mvaes -maes
 else
     $(warning This implementation requires x86_64 with AVX512F and VAES support)
     $(warning Build will likely fail on $(ARCH) architecture)
 endif
-LDFLAGS ?= 
+
+CFLAGS += -std=c99
 
 # Source files
 SOURCES = encrypt.c test.c

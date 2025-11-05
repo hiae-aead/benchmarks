@@ -1,6 +1,16 @@
 CC ?= clang
-CFLAGS ?= -O3 -march=native -std=c99 -I.
 LDFLAGS ?=
+
+ARCH := $(shell uname -m)
+ifeq ($(ARCH),arm64)
+    CFLAGS ?= -O3 -mcpu=native
+else ifeq ($(ARCH),aarch64)
+    CFLAGS ?= -O3 -mcpu=native
+else
+    CFLAGS ?= -O3 -march=native
+endif
+
+CFLAGS += -std=c99 -I.
 
 # HiAE modular source files
 HIAE_SOURCES = hiae/HiAE.c hiae/HiAE_aesni.c hiae/HiAE_arm.c hiae/HiAE_arm_sha3.c hiae/HiAE_software.c hiae/HiAE_stream.c hiae/HiAE_vaes_avx512.c
