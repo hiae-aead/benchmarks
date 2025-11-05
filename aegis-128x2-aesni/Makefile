@@ -1,12 +1,21 @@
 # Allow overriding compiler and flags from command line
 CC ?= clang
+LDFLAGS ?=
+
 # Detect architecture and set appropriate flags
 ARCH := $(shell uname -m)
-CFLAGS ?= -O3 -march=native -std=c99
+ifeq ($(ARCH),arm64)
+    CFLAGS ?= -O3 -mcpu=native
+else ifeq ($(ARCH),aarch64)
+    CFLAGS ?= -O3 -mcpu=native
+else
+    CFLAGS ?= -O3 -march=native
+endif
 ifeq ($(ARCH),x86_64)
     CFLAGS += -maes -mavx
 endif
-LDFLAGS ?= 
+
+CFLAGS += -std=c99 -I.
 
 # Source files
 SOURCES = encrypt.c test.c

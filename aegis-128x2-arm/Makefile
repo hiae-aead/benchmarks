@@ -1,6 +1,8 @@
 CC ?= clang
-CFLAGS ?= -O3 -march=native -std=c99
-LDFLAGS ?= 
+CFLAGS ?= -O3 -mcpu=native
+LDFLAGS ?=
+
+CFLAGS += -std=c99
 
 # Detect architecture
 ARCH := $(shell uname -m)

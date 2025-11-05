@@ -1,20 +1,19 @@
 # Allow overriding compiler and flags from command line
 CC ?= clang
-CFLAGS ?= -O3 -std=c99
 LDFLAGS ?=
+
+ARCH := $(shell uname -m)
+ifeq ($(ARCH),arm64)
+    CFLAGS ?= -O3 -mcpu=native
+else ifeq ($(ARCH),aarch64)
+    CFLAGS ?= -O3 -mcpu=native
+else
+    CFLAGS ?= -O3 -march=native
+endif
+
+CFLAGS += -std=c99 -I.
 LDFLAGS += -lm
 
-# Detect architecture and select appropriate implementation
-ARCH := $(shell uname -m)
-
-# Add ARM crypto extensions for ARM builds
-ifeq ($(ARCH),arm64)
-    CFLAGS += -march=native+crypto
-else ifeq ($(ARCH),aarch64)
-    CFLAGS += -march=native+crypto
-else
-    CFLAGS += -march=native
-endif
 TARGET = rocca-s_benchmark
 SOURCES = performance_test.c rocca-s.c
 
