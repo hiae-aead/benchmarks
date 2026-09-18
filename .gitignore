@@ -2,3 +2,6 @@
 .zig-cache
 *.o
 __pycache__
+*_test
+*_benchmark
+benchmark-results-*/

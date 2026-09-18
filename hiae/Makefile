@@ -1,4 +1,8 @@
-CC ?= clang
+# Use clang if it's installed, unless another compiler was asked for
+ifeq ($(origin CC),default)
+    CC := $(if $(shell command -v clang 2>/dev/null),clang,cc)
+endif
+
 LDFLAGS ?=
 
 ARCH := $(shell uname -m)
@@ -10,44 +14,38 @@ else
     CFLAGS ?= -O3 -march=native
 endif
 
-CFLAGS += -std=c99 -I.
+# Kept out of CFLAGS, so that overriding CFLAGS doesn't break the build
+BUILD_CFLAGS = $(CFLAGS) -std=c99 -I.
 
-# HiAE modular source files
+# Copied from libhiae
 HIAE_SOURCES = hiae/HiAE.c hiae/HiAE_aesni.c hiae/HiAE_arm.c hiae/HiAE_arm_sha3.c hiae/HiAE_software.c hiae/HiAE_stream.c hiae/HiAE_vaes_avx512.c
+HIAE_HEADERS = HiAE.h hiae/HiAE_internal.h hiae/softaes.h common/common.h common/cpu.h
 
-# Source files
-SOURCES = encrypt.c $(HIAE_SOURCES)
-OBJECTS = $(SOURCES:.c=.o)
-TARGET = hiae_test
+TEST_SOURCES = encrypt.c test.c $(HIAE_SOURCES)
+TEST_OBJECTS = $(TEST_SOURCES:.c=.o)
+TEST_TARGET = hiae_test
 
-# Benchmark files
 BENCH_SOURCES = encrypt.c benchmark.c $(HIAE_SOURCES)
 BENCH_OBJECTS = $(BENCH_SOURCES:.c=.o)
 BENCH_TARGET = hiae_benchmark
 
-# Default target
-all: $(BENCH_TARGET)
+all: $(TEST_TARGET) $(BENCH_TARGET)
 
-# Build the main target
-$(TARGET): $(OBJECTS)
-	$(CC) $(OBJECTS) -o $(TARGET) $(LDFLAGS)
+$(TEST_TARGET): $(TEST_OBJECTS)
+	$(CC) $(TEST_OBJECTS) -o $(TEST_TARGET) $(LDFLAGS)
 
-# Build the benchmark target
 $(BENCH_TARGET): $(BENCH_OBJECTS)
 	$(CC) $(BENCH_OBJECTS) -o $(BENCH_TARGET) $(LDFLAGS) -lm
 
-# Compile source files
 %.o: %.c
-	$(CC) $(CFLAGS) -c $< -o $@
+	$(CC) $(BUILD_CFLAGS) -c $< -o $@
 
-# Clean build artifacts
 clean:
-	rm -f $(OBJECTS) $(BENCH_OBJECTS) $(TARGET) $(BENCH_TARGET)
+	rm -f $(TEST_OBJECTS) $(BENCH_OBJECTS) $(TEST_TARGET) $(BENCH_TARGET)
 
-# Phony targets
 .PHONY: all clean
 
-# Dependencies
 encrypt.o: encrypt.c crypto_aead.h api.h HiAE.h
-benchmark.o: benchmark.c crypto_aead.h timing.h
-$(HIAE_SOURCES:.c=.o): HiAE.h hiae/HiAE_internal.h
+test.o: test.c crypto_aead.h api.h
+benchmark.o: benchmark.c crypto_aead.h api.h timing.h
+$(HIAE_SOURCES:.c=.o): $(HIAE_HEADERS)

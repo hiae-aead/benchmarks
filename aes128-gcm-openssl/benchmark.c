@@ -14,6 +14,9 @@
 #define COMPUTATION_TIME 3.0
 #define NUM_MEASUREMENTS 5
 
+// Page-aligned, so that the results don't depend on where malloc() happens to put the buffers. Some placements are up to 25% slower.
+#define BUFFER_ALIGNMENT 4096
+
 const int len_test_case = 11;
 size_t    test_case[11] = { 65536, 32768, 16384, 8192, 4096, 2048, 1024, 512, 256, 64, 16 };
 
@@ -57,7 +60,7 @@ speed_test_encode_work(size_t len, int aead_mode)
     size_t   ad_len = aead_mode ? 48 : 0;
     uint8_t *ad     = NULL;
     if (ad_len > 0) {
-        ad = aegis_aligned_alloc(16, ad_len);
+        ad = aegis_aligned_alloc(BUFFER_ALIGNMENT, ad_len);
         if (!ad) {
             fprintf(stderr, "Failed to allocate AD memory\n");
             return result;
@@ -65,8 +68,8 @@ speed_test_encode_work(size_t len, int aead_mode)
         memset(ad, 1, ad_len);
     }
 
-    uint8_t *msg = aegis_aligned_alloc(16, len);
-    uint8_t *ct  = aegis_aligned_alloc(16, len + CRYPTO_ABYTES);
+    uint8_t *msg = aegis_aligned_alloc(BUFFER_ALIGNMENT, len);
+    uint8_t *ct  = aegis_aligned_alloc(BUFFER_ALIGNMENT, len + CRYPTO_ABYTES);
     if (!msg || !ct) {
         fprintf(stderr, "Failed to allocate memory\n");
         aegis_aligned_free(ad);
@@ -145,7 +148,7 @@ speed_test_decode_work(size_t len, int aead_mode)
     size_t   ad_len = aead_mode ? 48 : 0;
     uint8_t *ad     = NULL;
     if (ad_len > 0) {
-        ad = aegis_aligned_alloc(16, ad_len);
+        ad = aegis_aligned_alloc(BUFFER_ALIGNMENT, ad_len);
         if (!ad) {
             fprintf(stderr, "Failed to allocate AD memory\n");
             return result;
@@ -153,9 +156,9 @@ speed_test_decode_work(size_t len, int aead_mode)
         memset(ad, 1, ad_len);
     }
 
-    uint8_t *msg = aegis_aligned_alloc(16, len);
-    uint8_t *ct  = aegis_aligned_alloc(16, len + CRYPTO_ABYTES);
-    uint8_t *dec = aegis_aligned_alloc(16, len);
+    uint8_t *msg = aegis_aligned_alloc(BUFFER_ALIGNMENT, len);
+    uint8_t *ct  = aegis_aligned_alloc(BUFFER_ALIGNMENT, len + CRYPTO_ABYTES);
+    uint8_t *dec = aegis_aligned_alloc(BUFFER_ALIGNMENT, len);
     if (!msg || !ct || !dec) {
         fprintf(stderr, "Failed to allocate memory\n");
         aegis_aligned_free(ad);

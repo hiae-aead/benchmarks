@@ -18,8 +18,8 @@ This repository contains cryptographic benchmarking implementations for various 
 # Build all algorithms (auto-detects architecture)
 make all
 
-# Build with optimal performance (recommended)
-CC="clang -march=native" make all
+# Build with a specific compiler (clang is used by default when it's installed)
+CC=gcc make all
 
 # Run all tests
 make test
@@ -42,13 +42,9 @@ make                    # Build test and benchmark executables
 ./<algorithm>_benchmark # Run performance benchmarks
 ```
 
-**Performance Recommendation:** For optimal performance, use `clang` as your compiler:
+Everything is compiled with `-O3 -march=native` (`-mcpu=native` on ARM) and with clang when it's available, because it usually produces faster code than GCC for these implementations. Use `CC=gcc make` to build with GCC instead.
 
-```bash
-CC="clang -march=native" make
-```
-
-Clang typically produces faster cryptographic code than GCC due to better optimization of vectorized operations and loop unrolling.
+The HiAE, HiAEx2 and HiAEx4 directories contain a copy of the [libhiae](https://github.com/hiae-aead/libhiae) sources, and their `_test` programs check the output against the libhiae test vectors.
 
 ## Architecture Support
 
@@ -63,6 +59,7 @@ Note: Some implementations require specific CPU features:
 - AEGIS-128x2-vaes: AES-NI, AVX2, VAES
 - AEGIS-128x4-avx512: AVX-512F, VAES
 - AES-128-GCM: OpenSSL library
+- HiAEx4 on x86_64: AVX-512F, AVX-512VL and VAES, otherwise it falls back to a much slower portable implementation
 
 ## Performance Testing
 
@@ -71,6 +68,8 @@ Benchmarks test multiple message sizes (16B to 64KB) and measure:
 - Throughput (Gbps/Mbps)
 - Cycles per byte
 - Cross-platform performance characteristics
+
+Buffers are page-aligned, so that the results don't depend on where `malloc()` happens to put them. With some placements, the fastest ciphers run up to 25% slower.
 
 ### Running Benchmarks
 
@@ -102,18 +101,18 @@ cd <algorithm-directory>
   <img src=".media/m4/decryption_throughput_m4.png" width="600" alt="M4 Encryption Throughput">
 </p>
 
-### AMD Zen 4
+### AMD Zen 4 (Ryzen 7 7700, clang 21)
 
 <p align="center">
-  <img src=".media/zen4/throughput_comparison_.png" width="600" alt="Zen 4 Throughput Comparison">
+  <img src=".media/zen4/throughput_comparison_zen4.png" width="600" alt="Zen 4 Throughput Comparison">
 </p>
 
 <p align="center">
-  <img src=".media/zen4/encryption_throughput_.png" width="600" alt="Zen 4 Encryption Throughput">
+  <img src=".media/zen4/encryption_throughput_zen4.png" width="600" alt="Zen 4 Encryption Throughput">
 </p>
 
 <p align="center">
-  <img src=".media/zen4/decryption_throughput_.png" width="600" alt="Zen 4 Decryption Throughput">
+  <img src=".media/zen4/decryption_throughput_zen4.png" width="600" alt="Zen 4 Decryption Throughput">
 </p>
 
 ## Benchmark Visualization

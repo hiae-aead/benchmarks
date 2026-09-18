@@ -1,5 +1,9 @@
 # Allow overriding compiler and flags from command line
-CC ?= clang
+# Use clang if it's installed, unless another compiler was asked for
+ifeq ($(origin CC),default)
+    CC := $(if $(shell command -v clang 2>/dev/null),clang,cc)
+endif
+
 LDFLAGS ?=
 
 # Detect architecture and set appropriate flags

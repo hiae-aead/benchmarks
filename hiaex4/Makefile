@@ -1,4 +1,8 @@
-CC ?= clang
+# Use clang if it's installed, unless another compiler was asked for
+ifeq ($(origin CC),default)
+    CC := $(if $(shell command -v clang 2>/dev/null),clang,cc)
+endif
+
 LDFLAGS ?=
 
 ARCH := $(shell uname -m)
@@ -10,50 +14,38 @@ else
     CFLAGS ?= -O3 -march=native
 endif
 
-CFLAGS += -std=c99 -I.
+# Kept out of CFLAGS, so that overriding CFLAGS doesn't break the build
+BUILD_CFLAGS = $(CFLAGS) -std=c99 -I.
 
-# HiAEx4 modular source files
+# Copied from libhiae
 HIAEX4_SOURCES = hiaex4/HiAEx4.c hiaex4/HiAEx4_arm.c hiaex4/HiAEx4_arm_sha3.c hiaex4/HiAEx4_software.c hiaex4/HiAEx4_stream.c hiaex4/HiAEx4_vaes_avx512.c
+HIAEX4_HEADERS = HiAEx4.h hiaex4/HiAEx4_internal.h hiaex4/softaes.h common/common.h common/cpu.h
 
-# Source files
-SOURCES = encrypt.c $(HIAEX4_SOURCES)
-OBJECTS = $(SOURCES:.c=.o)
-TARGET = hiaex4_test
-
-# Test files
-TEST_SOURCES = test.c
+TEST_SOURCES = encrypt.c test.c $(HIAEX4_SOURCES)
 TEST_OBJECTS = $(TEST_SOURCES:.c=.o)
 TEST_TARGET = hiaex4_test
 
-# Benchmark files
 BENCH_SOURCES = encrypt.c benchmark.c $(HIAEX4_SOURCES)
 BENCH_OBJECTS = $(BENCH_SOURCES:.c=.o)
 BENCH_TARGET = hiaex4_benchmark
 
-# Default target
 all: $(TEST_TARGET) $(BENCH_TARGET)
 
-# Build the test target
 $(TEST_TARGET): $(TEST_OBJECTS)
 	$(CC) $(TEST_OBJECTS) -o $(TEST_TARGET) $(LDFLAGS)
 
-# Build the benchmark target
 $(BENCH_TARGET): $(BENCH_OBJECTS)
 	$(CC) $(BENCH_OBJECTS) -o $(BENCH_TARGET) $(LDFLAGS) -lm
 
-# Compile source files
 %.o: %.c
-	$(CC) $(CFLAGS) -c $< -o $@
+	$(CC) $(BUILD_CFLAGS) -c $< -o $@
 
-# Clean build artifacts
 clean:
-	rm -f $(OBJECTS) $(TEST_OBJECTS) $(BENCH_OBJECTS) $(TEST_TARGET) $(BENCH_TARGET)
+	rm -f $(TEST_OBJECTS) $(BENCH_OBJECTS) $(TEST_TARGET) $(BENCH_TARGET)
 
-# Phony targets
 .PHONY: all clean
 
-# Dependencies
 encrypt.o: encrypt.c crypto_aead.h api.h HiAEx4.h
 test.o: test.c crypto_aead.h api.h
-benchmark.o: benchmark.c crypto_aead.h timing.h
-$(HIAEX4_SOURCES:.c=.o): HiAEx4.h hiaex4/HiAEx4_internal.h
+benchmark.o: benchmark.c crypto_aead.h api.h timing.h
+$(HIAEX4_SOURCES:.c=.o): $(HIAEX4_HEADERS)

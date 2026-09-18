@@ -4,6 +4,11 @@
 # Detect architecture
 ARCH := $(shell uname -m)
 
+# Use clang if it's installed, unless another compiler was asked for
+ifeq ($(origin CC),default)
+    CC := $(if $(shell command -v clang 2>/dev/null),clang,cc)
+endif
+
 # Check compiler and warn if not using clang
 ifeq ($(findstring clang,$(CC)),)
     $(info Warning: Using $(CC) compiler. For optimal performance, consider using clang: CC=clang make)
@@ -95,9 +100,7 @@ test: all
 	@for dir in $(COMMON_DIRS); do \
 		if [ -x "$$dir/$${dir}_test" ]; then \
 			echo "Testing $$dir..."; \
-			cd $$dir && ./$${dir}_test && cd ..; \
-		elif [ "$$dir" = "hiae" ]; then \
-			echo "Skipping $$dir (no test executable)"; \
+			(cd $$dir && ./$${dir}_test) || exit 1; \
 		elif [ "$$dir" = "rocca-s" ]; then \
 			echo "Skipping $$dir (benchmark only)"; \
 		fi; \
@@ -106,7 +109,7 @@ ifneq ($(findstring x86_64,$(ARCH))$(findstring amd64,$(ARCH))$(findstring i386,
 	@for dir in $(INTEL_DIRS); do \
 		if [ -x "$$dir/$${dir}_test" ]; then \
 			echo "Testing $$dir..."; \
-			cd $$dir && ./$${dir}_test && cd ..; \
+			(cd $$dir && ./$${dir}_test) || exit 1; \
 		fi; \
 	done
 endif
@@ -114,7 +117,7 @@ ifneq ($(findstring arm,$(ARCH))$(findstring aarch64,$(ARCH)),)
 	@for dir in $(ARM_DIRS); do \
 		if [ -x "$$dir/$${dir}_test" ]; then \
 			echo "Testing $$dir..."; \
-			cd $$dir && ./$${dir}_test && cd ..; \
+			(cd $$dir && ./$${dir}_test) || exit 1; \
 		fi; \
 	done
 endif
@@ -128,14 +131,14 @@ benchmark:
 	@for dir in $(COMMON_DIRS); do \
 		if [ -x "$$dir/$${dir}_benchmark" ]; then \
 			echo "Benchmarking $$dir..."; \
-			cd $$dir && ./$${dir}_benchmark && cd ..; \
+			(cd $$dir && ./$${dir}_benchmark); \
 		fi; \
 	done
 ifneq ($(findstring x86_64,$(ARCH))$(findstring amd64,$(ARCH))$(findstring i386,$(ARCH))$(findstring i686,$(ARCH)),)
 	@for dir in $(INTEL_DIRS); do \
 		if [ -x "$$dir/$${dir}_benchmark" ]; then \
 			echo "Benchmarking $$dir..."; \
-			cd $$dir && ./$${dir}_benchmark && cd ..; \
+			(cd $$dir && ./$${dir}_benchmark); \
 		fi; \
 	done
 endif
@@ -143,7 +146,7 @@ ifneq ($(findstring arm,$(ARCH))$(findstring aarch64,$(ARCH)),)
 	@for dir in $(ARM_DIRS); do \
 		if [ -x "$$dir/$${dir}_benchmark" ]; then \
 			echo "Benchmarking $$dir..."; \
-			cd $$dir && ./$${dir}_benchmark && cd ..; \
+			(cd $$dir && ./$${dir}_benchmark); \
 		fi; \
 	done
 endif
@@ -159,7 +162,7 @@ benchmark-csv:
 	for dir in $(COMMON_DIRS); do \
 		if [ -x "$$dir/$${dir}_benchmark" ]; then \
 			echo "Benchmarking $$dir (CSV)..."; \
-			cd $$dir && ./$${dir}_benchmark --csv > ../$$CSV_DIR/$${dir}.csv && cd ..; \
+			(cd $$dir && ./$${dir}_benchmark --csv) > $$CSV_DIR/$${dir}.csv; \
 			echo "  Saved to $$CSV_DIR/$${dir}.csv"; \
 		fi; \
 	done; \
@@ -168,7 +171,7 @@ benchmark-csv:
 		for dir in $(INTEL_DIRS); do \
 			if [ -x "$$dir/$${dir}_benchmark" ]; then \
 				echo "Benchmarking $$dir (CSV)..."; \
-				cd $$dir && ./$${dir}_benchmark --csv > ../$$CSV_DIR/$${dir}.csv && cd ..; \
+				(cd $$dir && ./$${dir}_benchmark --csv) > $$CSV_DIR/$${dir}.csv; \
 				echo "  Saved to $$CSV_DIR/$${dir}.csv"; \
 			fi; \
 		done; \
@@ -178,7 +181,7 @@ benchmark-csv:
 		for dir in $(ARM_DIRS); do \
 			if [ -x "$$dir/$${dir}_benchmark" ]; then \
 				echo "Benchmarking $$dir (CSV)..."; \
-				cd $$dir && ./$${dir}_benchmark --csv > ../$$CSV_DIR/$${dir}.csv && cd ..; \
+				(cd $$dir && ./$${dir}_benchmark --csv) > $$CSV_DIR/$${dir}.csv; \
 				echo "  Saved to $$CSV_DIR/$${dir}.csv"; \
 			fi; \
 		done; \

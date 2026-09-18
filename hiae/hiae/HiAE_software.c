@@ -2,8 +2,7 @@
 #include "HiAE_internal.h"
 
 // Only compile software implementation if hardware AES+VAES+AVX512 is not available
-#if !((defined(__AES__) && defined(__VAES__) && defined(__AVX512F__)) || \
-      defined(__ARM_FEATURE_CRYPTO))
+#ifndef HIAE_HAS_HW_AES
 
 #    define FAVOR_PERFORMANCE
 #    include "softaes.h"
@@ -17,12 +16,38 @@ typedef SoftAesBlock DATA128b;
 #    define AESL(x)          softaes_block_aesl(x)
 #    define XAESL(x, y)      softaes_block_xaesl(x, y)
 
+/*
+ * AESL without the S-box affine constant.
+ *
+ * When two AESL outputs are XORed  together the 0x63 constants cancel.
+ */
+#    ifdef SOFTAES_SIMD128
+#        define AESL_NC(x)     softaes_block_aesl_nc(x)
+#        define XAESL_NC(x, y) softaes_block_aesl_nc(softaes_block_xor((x), (y)))
+#        define AESL_C63()     softaes_block_c63()
+#    else
+#        define AESL_NC(x)     AESL(x)
+#        define XAESL_NC(x, y) XAESL(x, y)
+#        define AESL_C63()     SIMD_ZERO_128()
+#    endif
+
+/*
+ * On the SIMD backend the bulk functions stay out of line so the state
+ * array lives in memory: engines with 16 vector registers would otherwise
+ * spill it through the stack on every step.
+ */
+#    ifdef SOFTAES_SIMD128
+#        define SOFTAES_CHUNK_FN static void __attribute__((noinline))
+#    else
+#        define SOFTAES_CHUNK_FN static inline void
+#    endif
+
 static inline void
-update_state_offset(DATA128b *state, DATA128b *tmp, DATA128b M, int offset)
+update_state_offset(DATA128b *state, DATA128b M, int offset)
 {
-    tmp[offset] = XAESL(state[(P_0 + offset) % STATE], state[(P_1 + offset) % STATE]);
-    tmp[offset] = SIMD_XOR(tmp[offset], M);
-    state[(0 + offset) % STATE]   = SIMD_XOR(tmp[offset], AESL(state[(P_4 + offset) % STATE]));
+    DATA128b t = XAESL_NC(state[(P_0 + offset) % STATE], state[(P_1 + offset) % STATE]);
+    t                             = SIMD_XOR(t, M);
+    state[(0 + offset) % STATE]   = SIMD_XOR(t, AESL_NC(state[(P_4 + offset) % STATE]));
     state[(I_1 + offset) % STATE] = SIMD_XOR(state[(I_1 + offset) % STATE], M);
     state[(I_2 + offset) % STATE] = SIMD_XOR(state[(I_2 + offset) % STATE], M);
 }
@@ -38,32 +63,32 @@ keystream_block(DATA128b *state, DATA128b M, int offset)
 static inline DATA128b
 enc_offset(DATA128b *state, DATA128b M, int offset)
 {
-    DATA128b C = XAESL(state[(P_0 + offset) % STATE], state[(P_1 + offset) % STATE]);
+    DATA128b C = XAESL_NC(state[(P_0 + offset) % STATE], state[(P_1 + offset) % STATE]);
     C          = SIMD_XOR(C, M);
-    state[(0 + offset) % STATE]   = SIMD_XOR(C, AESL(state[(P_4 + offset) % STATE]));
-    C                             = SIMD_XOR(C, state[(P_7 + offset) % STATE]);
+    state[(0 + offset) % STATE]   = SIMD_XOR(C, AESL_NC(state[(P_4 + offset) % STATE]));
+    C                             = SIMD_XOR(SIMD_XOR(C, state[(P_7 + offset) % STATE]), AESL_C63());
     state[(I_1 + offset) % STATE] = SIMD_XOR(state[(I_1 + offset) % STATE], M);
     state[(I_2 + offset) % STATE] = SIMD_XOR(state[(I_2 + offset) % STATE], M);
     return C;
 }
 
 static inline DATA128b
-dec_offset(DATA128b *state, DATA128b *tmp, DATA128b C, int offset)
+dec_offset(DATA128b *state, DATA128b C, int offset)
 {
-    tmp[offset] = XAESL(state[(P_0 + offset) % STATE], state[(P_1 + offset) % STATE]);
-    DATA128b M  = SIMD_XOR(state[(P_7 + offset) % STATE], C);
-    state[(0 + offset) % STATE]   = SIMD_XOR(M, AESL(state[(P_4 + offset) % STATE]));
-    M                             = SIMD_XOR(M, tmp[offset]);
+    DATA128b t = XAESL_NC(state[(P_0 + offset) % STATE], state[(P_1 + offset) % STATE]);
+    DATA128b M = SIMD_XOR(SIMD_XOR(state[(P_7 + offset) % STATE], C), AESL_C63());
+    state[(0 + offset) % STATE]   = SIMD_XOR(M, AESL_NC(state[(P_4 + offset) % STATE]));
+    M                             = SIMD_XOR(M, t);
     state[(I_1 + offset) % STATE] = SIMD_XOR(state[(I_1 + offset) % STATE], M);
     state[(I_2 + offset) % STATE] = SIMD_XOR(state[(I_2 + offset) % STATE], M);
     return M;
 }
 
-#    define LOAD_1BLOCK_offset_enc(M, offset)  (M) = SIMD_LOAD(mi + i + 0 + BLOCK_SIZE * offset);
-#    define LOAD_1BLOCK_offset_dec(C, offset)  (C) = SIMD_LOAD(ci + i + 0 + BLOCK_SIZE * offset);
-#    define LOAD_1BLOCK_offset_ad(M, offset)   (M) = SIMD_LOAD(ad + i + 0 + BLOCK_SIZE * offset);
-#    define STORE_1BLOCK_offset_enc(C, offset) SIMD_STORE(ci + i + 0 + BLOCK_SIZE * offset, (C));
-#    define STORE_1BLOCK_offset_dec(M, offset) SIMD_STORE(mi + i + 0 + BLOCK_SIZE * offset, (M));
+#    define LOAD_1BLOCK_offset_enc(M, offset)  (M) = SIMD_LOAD(mi + i + BLOCK_SIZE * (offset));
+#    define LOAD_1BLOCK_offset_dec(C, offset)  (C) = SIMD_LOAD(ci + i + BLOCK_SIZE * (offset));
+#    define LOAD_1BLOCK_offset_ad(M, offset)   (M) = SIMD_LOAD(ad + i + BLOCK_SIZE * (offset));
+#    define STORE_1BLOCK_offset_enc(C, offset) SIMD_STORE(ci + i + BLOCK_SIZE * (offset), (C));
+#    define STORE_1BLOCK_offset_dec(M, offset) SIMD_STORE(mi + i + BLOCK_SIZE * (offset), (M));
 
 static inline void
 state_shift(DATA128b *state, DATA128b *tmp)
@@ -87,171 +112,330 @@ state_shift(DATA128b *state, DATA128b *tmp)
     state[15] = tmp[0];
 }
 
-static inline void
-init_update(DATA128b *state, DATA128b *tmp, DATA128b c0)
+SOFTAES_CHUNK_FN
+init_update(DATA128b *state, DATA128b c0, DATA128b c1)
 {
-    update_state_offset(state, tmp, c0, 0);
-    update_state_offset(state, tmp, c0, 1);
-    update_state_offset(state, tmp, c0, 2);
-    update_state_offset(state, tmp, c0, 3);
-    update_state_offset(state, tmp, c0, 4);
-    update_state_offset(state, tmp, c0, 5);
-    update_state_offset(state, tmp, c0, 6);
-    update_state_offset(state, tmp, c0, 7);
-    update_state_offset(state, tmp, c0, 8);
-    update_state_offset(state, tmp, c0, 9);
-    update_state_offset(state, tmp, c0, 10);
-    update_state_offset(state, tmp, c0, 11);
-    update_state_offset(state, tmp, c0, 12);
-    update_state_offset(state, tmp, c0, 13);
-    update_state_offset(state, tmp, c0, 14);
-    update_state_offset(state, tmp, c0, 15);
+    update_state_offset(state, c0, 0);
+    update_state_offset(state, c1, 1);
+    update_state_offset(state, c0, 2);
+    update_state_offset(state, c1, 3);
+    update_state_offset(state, c0, 4);
+    update_state_offset(state, c1, 5);
+    update_state_offset(state, c0, 6);
+    update_state_offset(state, c1, 7);
+    update_state_offset(state, c0, 8);
+    update_state_offset(state, c1, 9);
+    update_state_offset(state, c0, 10);
+    update_state_offset(state, c1, 11);
+    update_state_offset(state, c0, 12);
+    update_state_offset(state, c1, 13);
+    update_state_offset(state, c0, 14);
+    update_state_offset(state, c1, 15);
 }
 
-static inline void
-ad_update(DATA128b *state, DATA128b *tmp, const uint8_t *ad, size_t i)
+SOFTAES_CHUNK_FN
+ad_update(DATA128b *state, const uint8_t *ad, size_t i)
 {
-    DATA128b M[16];
-    LOAD_1BLOCK_offset_ad(M[0], 0);
-    LOAD_1BLOCK_offset_ad(M[1], 1);
-    LOAD_1BLOCK_offset_ad(M[2], 2);
-    LOAD_1BLOCK_offset_ad(M[3], 3);
-    LOAD_1BLOCK_offset_ad(M[4], 4);
-    LOAD_1BLOCK_offset_ad(M[5], 5);
-    LOAD_1BLOCK_offset_ad(M[6], 6);
-    LOAD_1BLOCK_offset_ad(M[7], 7);
-    LOAD_1BLOCK_offset_ad(M[8], 8);
-    LOAD_1BLOCK_offset_ad(M[9], 9);
-    LOAD_1BLOCK_offset_ad(M[10], 10);
-    LOAD_1BLOCK_offset_ad(M[11], 11);
-    LOAD_1BLOCK_offset_ad(M[12], 12);
-    LOAD_1BLOCK_offset_ad(M[13], 13);
-    LOAD_1BLOCK_offset_ad(M[14], 14);
-    LOAD_1BLOCK_offset_ad(M[15], 15);
-    update_state_offset(state, tmp, M[0], 0);
-    update_state_offset(state, tmp, M[1], 1);
-    update_state_offset(state, tmp, M[2], 2);
-    update_state_offset(state, tmp, M[3], 3);
-    update_state_offset(state, tmp, M[4], 4);
-    update_state_offset(state, tmp, M[5], 5);
-    update_state_offset(state, tmp, M[6], 6);
-    update_state_offset(state, tmp, M[7], 7);
-    update_state_offset(state, tmp, M[8], 8);
-    update_state_offset(state, tmp, M[9], 9);
-    update_state_offset(state, tmp, M[10], 10);
-    update_state_offset(state, tmp, M[11], 11);
-    update_state_offset(state, tmp, M[12], 12);
-    update_state_offset(state, tmp, M[13], 13);
-    update_state_offset(state, tmp, M[14], 14);
-    update_state_offset(state, tmp, M[15], 15);
+    DATA128b M;
+#    define AD_STEP(o)                            \
+        do {                                      \
+            LOAD_1BLOCK_offset_ad(M, o);          \
+            update_state_offset(state, M, o);    \
+        } while (0)
+    AD_STEP(0);
+    AD_STEP(1);
+    AD_STEP(2);
+    AD_STEP(3);
+    AD_STEP(4);
+    AD_STEP(5);
+    AD_STEP(6);
+    AD_STEP(7);
+    AD_STEP(8);
+    AD_STEP(9);
+    AD_STEP(10);
+    AD_STEP(11);
+    AD_STEP(12);
+    AD_STEP(13);
+    AD_STEP(14);
+    AD_STEP(15);
+#    undef AD_STEP
 }
 
-static inline void
+/*
+ * Every output column is stored at once and followed by a memory barrier,
+ * or the compiler hoists all sixteen table loads of a round above their XOR
+ * consumers and register-poor targets (wasmtime) spill the lot.
+ *
+ * And we add an empty asm to prevent the vectorizer from using vector lanes.
+ */
+#    if (defined(__GNUC__) || defined(__clang__)) && defined(__BYTE_ORDER__) && \
+        __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__ && !defined(SOFTAES_SIMD128)
+
+#        define TT_COL(xb, i0, i1, i2, i3) \
+            (LUT0[(xb)[i0]] ^ LUT1[(xb)[i1]] ^ LUT2[(xb)[i2]] ^ LUT3[(xb)[i3]])
+#        define TT_BARRIER() __asm__ __volatile__("" ::: "memory")
+
+#        define TT_ENC_STEP(o)                                                  \
+            do {                                                                \
+                uint32_t       *S0   = w + (o) * 4;                             \
+                const uint32_t *S2   = w + ((((o) + 2) & 15) * 4);              \
+                uint32_t       *S3   = w + ((((o) + 3) & 15) * 4);              \
+                const uint32_t *S9   = w + ((((o) + 9) & 15) * 4);              \
+                uint32_t       *S13  = w + ((((o) + 13) & 15) * 4);             \
+                const uint8_t  *s13b = (const uint8_t *) S13;                   \
+                uint32_t       *pn   = psc + (((o) + 1) & 1) * 4;               \
+                const uint8_t  *pb   = (const uint8_t *) (psc + ((o) & 1) * 4); \
+                uint32_t        x0, x1, x2, x3, n0, n1, n2, n3, a;              \
+                n0    = S2[0];                                                  \
+                n1    = S2[1];                                                  \
+                n2    = S2[2];                                                  \
+                n3    = S2[3];                                                  \
+                pn[0] = cc0 ^ n0;                                               \
+                pn[1] = cc1 ^ n1;                                               \
+                pn[2] = cc2 ^ n2;                                               \
+                pn[3] = cc3 ^ n3;                                               \
+                __asm__("" : "+r"(pb));                                         \
+                x0 = LOAD32_LE(mi + (o) * 16);                                  \
+                x1 = LOAD32_LE(mi + (o) * 16 + 4);                              \
+                x2 = LOAD32_LE(mi + (o) * 16 + 8);                              \
+                x3 = LOAD32_LE(mi + (o) * 16 + 12);                             \
+                __asm__("" : "+r"(x0), "+r"(x1), "+r"(x2), "+r"(x3));           \
+                a = x0 ^ TT_COL(pb, 0, 5, 10, 15);                              \
+                STORE32_LE(ci + (o) * 16, a ^ S9[0]);                           \
+                TT_BARRIER();                                                   \
+                S0[0] = a ^ TT_COL(s13b, 0, 5, 10, 15);                         \
+                TT_BARRIER();                                                   \
+                a = x1 ^ TT_COL(pb, 4, 9, 14, 3);                               \
+                STORE32_LE(ci + (o) * 16 + 4, a ^ S9[1]);                       \
+                TT_BARRIER();                                                   \
+                S0[1] = a ^ TT_COL(s13b, 4, 9, 14, 3);                          \
+                TT_BARRIER();                                                   \
+                a = x2 ^ TT_COL(pb, 8, 13, 2, 7);                               \
+                STORE32_LE(ci + (o) * 16 + 8, a ^ S9[2]);                       \
+                TT_BARRIER();                                                   \
+                S0[2] = a ^ TT_COL(s13b, 8, 13, 2, 7);                          \
+                TT_BARRIER();                                                   \
+                a = x3 ^ TT_COL(pb, 12, 1, 6, 11);                              \
+                STORE32_LE(ci + (o) * 16 + 12, a ^ S9[3]);                      \
+                TT_BARRIER();                                                   \
+                S0[3] = a ^ TT_COL(s13b, 12, 1, 6, 11);                         \
+                TT_BARRIER();                                                   \
+                S3[0] ^= x0;                                                    \
+                S3[1] ^= x1;                                                    \
+                S3[2] ^= x2;                                                    \
+                S3[3] ^= x3;                                                    \
+                TT_BARRIER();                                                   \
+                S13[0] ^= x0;                                                   \
+                S13[1] ^= x1;                                                   \
+                S13[2] ^= x2;                                                   \
+                S13[3] ^= x3;                                                   \
+                TT_BARRIER();                                                   \
+                cc0 = n0;                                                       \
+                cc1 = n1;                                                       \
+                cc2 = n2;                                                       \
+                cc3 = n3;                                                       \
+            } while (0)
+
+#        define TT_LAYOUT_ASSERT() \
+            (void) sizeof(char[(sizeof(DATA128b) == 16 && sizeof(DATA128b[16]) == 256) ? 1 : -1])
+
+static void __attribute__((noinline))
+encrypt_chunk_ttab(uint32_t *w, const uint8_t *mi, uint8_t *ci)
+{
+    uint32_t psc[8];
+    uint32_t cc0 = w[4], cc1 = w[5], cc2 = w[6], cc3 = w[7];
+
+    TT_LAYOUT_ASSERT();
+
+    psc[0] = w[0] ^ w[4];
+    psc[1] = w[1] ^ w[5];
+    psc[2] = w[2] ^ w[6];
+    psc[3] = w[3] ^ w[7];
+
+    TT_ENC_STEP(0);
+    TT_ENC_STEP(1);
+    TT_ENC_STEP(2);
+    TT_ENC_STEP(3);
+    TT_ENC_STEP(4);
+    TT_ENC_STEP(5);
+    TT_ENC_STEP(6);
+    TT_ENC_STEP(7);
+    TT_ENC_STEP(8);
+    TT_ENC_STEP(9);
+    TT_ENC_STEP(10);
+    TT_ENC_STEP(11);
+    TT_ENC_STEP(12);
+    TT_ENC_STEP(13);
+    TT_ENC_STEP(14);
+    TT_ENC_STEP(15);
+}
+
+#        define TT_DEC_STEP(o)                                                  \
+            do {                                                                \
+                uint32_t       *S0   = w + (o) * 4;                             \
+                const uint32_t *S2   = w + ((((o) + 2) & 15) * 4);              \
+                uint32_t       *S3   = w + ((((o) + 3) & 15) * 4);              \
+                const uint32_t *S9   = w + ((((o) + 9) & 15) * 4);              \
+                uint32_t       *S13  = w + ((((o) + 13) & 15) * 4);             \
+                const uint8_t  *s13b = (const uint8_t *) S13;                   \
+                uint32_t       *pn   = psc + (((o) + 1) & 1) * 4;               \
+                const uint8_t  *pb   = (const uint8_t *) (psc + ((o) & 1) * 4); \
+                uint32_t        t0, t1, t2, t3, m0, m1, m2, m3;                 \
+                uint32_t        n0, n1, n2, n3;                                 \
+                n0    = S2[0];                                                  \
+                n1    = S2[1];                                                  \
+                n2    = S2[2];                                                  \
+                n3    = S2[3];                                                  \
+                pn[0] = cc0 ^ n0;                                               \
+                pn[1] = cc1 ^ n1;                                               \
+                pn[2] = cc2 ^ n2;                                               \
+                pn[3] = cc3 ^ n3;                                               \
+                __asm__("" : "+r"(pb));                                         \
+                t0 = LOAD32_LE(ci + (o) * 16) ^ S9[0];                          \
+                t1 = LOAD32_LE(ci + (o) * 16 + 4) ^ S9[1];                      \
+                t2 = LOAD32_LE(ci + (o) * 16 + 8) ^ S9[2];                      \
+                t3 = LOAD32_LE(ci + (o) * 16 + 12) ^ S9[3];                     \
+                m0 = t0 ^ TT_COL(pb, 0, 5, 10, 15);                             \
+                TT_BARRIER();                                                   \
+                m1 = t1 ^ TT_COL(pb, 4, 9, 14, 3);                              \
+                TT_BARRIER();                                                   \
+                m2 = t2 ^ TT_COL(pb, 8, 13, 2, 7);                              \
+                TT_BARRIER();                                                   \
+                m3 = t3 ^ TT_COL(pb, 12, 1, 6, 11);                             \
+                TT_BARRIER();                                                   \
+                STORE32_LE(mi + (o) * 16, m0);                                  \
+                STORE32_LE(mi + (o) * 16 + 4, m1);                              \
+                STORE32_LE(mi + (o) * 16 + 8, m2);                              \
+                STORE32_LE(mi + (o) * 16 + 12, m3);                             \
+                S0[0] = t0 ^ TT_COL(s13b, 0, 5, 10, 15);                        \
+                TT_BARRIER();                                                   \
+                S0[1] = t1 ^ TT_COL(s13b, 4, 9, 14, 3);                         \
+                TT_BARRIER();                                                   \
+                S0[2] = t2 ^ TT_COL(s13b, 8, 13, 2, 7);                         \
+                TT_BARRIER();                                                   \
+                S0[3] = t3 ^ TT_COL(s13b, 12, 1, 6, 11);                        \
+                TT_BARRIER();                                                   \
+                S3[0] ^= m0;                                                    \
+                S3[1] ^= m1;                                                    \
+                S3[2] ^= m2;                                                    \
+                S3[3] ^= m3;                                                    \
+                S13[0] ^= m0;                                                   \
+                S13[1] ^= m1;                                                   \
+                S13[2] ^= m2;                                                   \
+                S13[3] ^= m3;                                                   \
+                cc0 = n0;                                                       \
+                cc1 = n1;                                                       \
+                cc2 = n2;                                                       \
+                cc3 = n3;                                                       \
+            } while (0)
+
+static void __attribute__((noinline))
+decrypt_chunk_ttab(uint32_t *w, const uint8_t *ci, uint8_t *mi)
+{
+    uint32_t psc[8];
+    uint32_t cc0 = w[4], cc1 = w[5], cc2 = w[6], cc3 = w[7];
+
+    TT_LAYOUT_ASSERT();
+
+    psc[0] = w[0] ^ w[4];
+    psc[1] = w[1] ^ w[5];
+    psc[2] = w[2] ^ w[6];
+    psc[3] = w[3] ^ w[7];
+
+    TT_DEC_STEP(0);
+    TT_DEC_STEP(1);
+    TT_DEC_STEP(2);
+    TT_DEC_STEP(3);
+    TT_DEC_STEP(4);
+    TT_DEC_STEP(5);
+    TT_DEC_STEP(6);
+    TT_DEC_STEP(7);
+    TT_DEC_STEP(8);
+    TT_DEC_STEP(9);
+    TT_DEC_STEP(10);
+    TT_DEC_STEP(11);
+    TT_DEC_STEP(12);
+    TT_DEC_STEP(13);
+    TT_DEC_STEP(14);
+    TT_DEC_STEP(15);
+}
+
+#        undef TT_ENC_STEP
+#        undef TT_DEC_STEP
+#        undef TT_COL
+#        undef TT_BARRIER
+#        undef TT_LAYOUT_ASSERT
+
+#        define HIAE_TTAB_CHUNKS 1
+#    endif
+
+SOFTAES_CHUNK_FN
 encrypt_chunk(DATA128b *state, const uint8_t *mi, uint8_t *ci, size_t i)
 {
-    DATA128b M[16], C[16];
-    LOAD_1BLOCK_offset_enc(M[0], 0);
-    LOAD_1BLOCK_offset_enc(M[1], 1);
-    LOAD_1BLOCK_offset_enc(M[2], 2);
-    LOAD_1BLOCK_offset_enc(M[3], 3);
-    LOAD_1BLOCK_offset_enc(M[4], 4);
-    LOAD_1BLOCK_offset_enc(M[5], 5);
-    LOAD_1BLOCK_offset_enc(M[6], 6);
-    LOAD_1BLOCK_offset_enc(M[7], 7);
-    LOAD_1BLOCK_offset_enc(M[8], 8);
-    LOAD_1BLOCK_offset_enc(M[9], 9);
-    LOAD_1BLOCK_offset_enc(M[10], 10);
-    LOAD_1BLOCK_offset_enc(M[11], 11);
-    LOAD_1BLOCK_offset_enc(M[12], 12);
-    LOAD_1BLOCK_offset_enc(M[13], 13);
-    LOAD_1BLOCK_offset_enc(M[14], 14);
-    LOAD_1BLOCK_offset_enc(M[15], 15);
-    C[0]  = enc_offset(state, M[0], 0);
-    C[1]  = enc_offset(state, M[1], 1);
-    C[2]  = enc_offset(state, M[2], 2);
-    C[3]  = enc_offset(state, M[3], 3);
-    C[4]  = enc_offset(state, M[4], 4);
-    C[5]  = enc_offset(state, M[5], 5);
-    C[6]  = enc_offset(state, M[6], 6);
-    C[7]  = enc_offset(state, M[7], 7);
-    C[8]  = enc_offset(state, M[8], 8);
-    C[9]  = enc_offset(state, M[9], 9);
-    C[10] = enc_offset(state, M[10], 10);
-    C[11] = enc_offset(state, M[11], 11);
-    C[12] = enc_offset(state, M[12], 12);
-    C[13] = enc_offset(state, M[13], 13);
-    C[14] = enc_offset(state, M[14], 14);
-    C[15] = enc_offset(state, M[15], 15);
-    STORE_1BLOCK_offset_enc(C[0], 0);
-    STORE_1BLOCK_offset_enc(C[1], 1);
-    STORE_1BLOCK_offset_enc(C[2], 2);
-    STORE_1BLOCK_offset_enc(C[3], 3);
-    STORE_1BLOCK_offset_enc(C[4], 4);
-    STORE_1BLOCK_offset_enc(C[5], 5);
-    STORE_1BLOCK_offset_enc(C[6], 6);
-    STORE_1BLOCK_offset_enc(C[7], 7);
-    STORE_1BLOCK_offset_enc(C[8], 8);
-    STORE_1BLOCK_offset_enc(C[9], 9);
-    STORE_1BLOCK_offset_enc(C[10], 10);
-    STORE_1BLOCK_offset_enc(C[11], 11);
-    STORE_1BLOCK_offset_enc(C[12], 12);
-    STORE_1BLOCK_offset_enc(C[13], 13);
-    STORE_1BLOCK_offset_enc(C[14], 14);
-    STORE_1BLOCK_offset_enc(C[15], 15);
+#    ifdef HIAE_TTAB_CHUNKS
+    encrypt_chunk_ttab((uint32_t *) (void *) state, mi + i, ci + i);
+#    else
+    /* one block at a time keeps the number of live vectors small, which
+     * engines with 16 vector registers reward far more than load batching */
+    DATA128b M, C;
+#        define ENC_STEP(o)                    \
+            do {                               \
+                LOAD_1BLOCK_offset_enc(M, o);  \
+                C = enc_offset(state, M, o);   \
+                STORE_1BLOCK_offset_enc(C, o); \
+            } while (0)
+    ENC_STEP(0);
+    ENC_STEP(1);
+    ENC_STEP(2);
+    ENC_STEP(3);
+    ENC_STEP(4);
+    ENC_STEP(5);
+    ENC_STEP(6);
+    ENC_STEP(7);
+    ENC_STEP(8);
+    ENC_STEP(9);
+    ENC_STEP(10);
+    ENC_STEP(11);
+    ENC_STEP(12);
+    ENC_STEP(13);
+    ENC_STEP(14);
+    ENC_STEP(15);
+#        undef ENC_STEP
+#    endif
 }
 
-static inline void
-decrypt_chunk(DATA128b *state, DATA128b *tmp, const uint8_t *ci, uint8_t *mi, size_t i)
+SOFTAES_CHUNK_FN
+decrypt_chunk(DATA128b *state, const uint8_t *ci, uint8_t *mi, size_t i)
 {
-    DATA128b M[16], C[16];
-    LOAD_1BLOCK_offset_dec(C[0], 0);
-    LOAD_1BLOCK_offset_dec(C[1], 1);
-    LOAD_1BLOCK_offset_dec(C[2], 2);
-    LOAD_1BLOCK_offset_dec(C[3], 3);
-    LOAD_1BLOCK_offset_dec(C[4], 4);
-    LOAD_1BLOCK_offset_dec(C[5], 5);
-    LOAD_1BLOCK_offset_dec(C[6], 6);
-    LOAD_1BLOCK_offset_dec(C[7], 7);
-    LOAD_1BLOCK_offset_dec(C[8], 8);
-    LOAD_1BLOCK_offset_dec(C[9], 9);
-    LOAD_1BLOCK_offset_dec(C[10], 10);
-    LOAD_1BLOCK_offset_dec(C[11], 11);
-    LOAD_1BLOCK_offset_dec(C[12], 12);
-    LOAD_1BLOCK_offset_dec(C[13], 13);
-    LOAD_1BLOCK_offset_dec(C[14], 14);
-    LOAD_1BLOCK_offset_dec(C[15], 15);
-    M[0]  = dec_offset(state, tmp, C[0], 0);
-    M[1]  = dec_offset(state, tmp, C[1], 1);
-    M[2]  = dec_offset(state, tmp, C[2], 2);
-    M[3]  = dec_offset(state, tmp, C[3], 3);
-    M[4]  = dec_offset(state, tmp, C[4], 4);
-    M[5]  = dec_offset(state, tmp, C[5], 5);
-    M[6]  = dec_offset(state, tmp, C[6], 6);
-    M[7]  = dec_offset(state, tmp, C[7], 7);
-    M[8]  = dec_offset(state, tmp, C[8], 8);
-    M[9]  = dec_offset(state, tmp, C[9], 9);
-    M[10] = dec_offset(state, tmp, C[10], 10);
-    M[11] = dec_offset(state, tmp, C[11], 11);
-    M[12] = dec_offset(state, tmp, C[12], 12);
-    M[13] = dec_offset(state, tmp, C[13], 13);
-    M[14] = dec_offset(state, tmp, C[14], 14);
-    M[15] = dec_offset(state, tmp, C[15], 15);
-    STORE_1BLOCK_offset_dec(M[0], 0);
-    STORE_1BLOCK_offset_dec(M[1], 1);
-    STORE_1BLOCK_offset_dec(M[2], 2);
-    STORE_1BLOCK_offset_dec(M[3], 3);
-    STORE_1BLOCK_offset_dec(M[4], 4);
-    STORE_1BLOCK_offset_dec(M[5], 5);
-    STORE_1BLOCK_offset_dec(M[6], 6);
-    STORE_1BLOCK_offset_dec(M[7], 7);
-    STORE_1BLOCK_offset_dec(M[8], 8);
-    STORE_1BLOCK_offset_dec(M[9], 9);
-    STORE_1BLOCK_offset_dec(M[10], 10);
-    STORE_1BLOCK_offset_dec(M[11], 11);
-    STORE_1BLOCK_offset_dec(M[12], 12);
-    STORE_1BLOCK_offset_dec(M[13], 13);
-    STORE_1BLOCK_offset_dec(M[14], 14);
-    STORE_1BLOCK_offset_dec(M[15], 15);
+#    ifdef HIAE_TTAB_CHUNKS
+    decrypt_chunk_ttab((uint32_t *) (void *) state, ci + i, mi + i);
+#    else
+    /* same single-block structure as encrypt_chunk, for the same reason */
+    DATA128b M, C;
+#        define DEC_STEP(o)                    \
+            do {                               \
+                LOAD_1BLOCK_offset_dec(C, o);  \
+                M = dec_offset(state, C, o);   \
+                STORE_1BLOCK_offset_dec(M, o); \
+            } while (0)
+    DEC_STEP(0);
+    DEC_STEP(1);
+    DEC_STEP(2);
+    DEC_STEP(3);
+    DEC_STEP(4);
+    DEC_STEP(5);
+    DEC_STEP(6);
+    DEC_STEP(7);
+    DEC_STEP(8);
+    DEC_STEP(9);
+    DEC_STEP(10);
+    DEC_STEP(11);
+    DEC_STEP(12);
+    DEC_STEP(13);
+    DEC_STEP(14);
+    DEC_STEP(15);
+#        undef DEC_STEP
+#    endif
 }
 
 static void
@@ -267,29 +451,25 @@ HiAE_init_software(HiAE_state_t *state_opaque, const uint8_t *key, const uint8_t
 
     DATA128b ze = SIMD_ZERO_128();
     state[0]    = c0;
-    state[1]    = k1;
-    state[2]    = N;
-    state[3]    = c0;
+    state[1]    = k0;
+    state[2]    = c0;
+    state[3]    = N;
     state[4]    = ze;
-    state[5]    = SIMD_XOR(N, k0);
+    state[5]    = k0;
     state[6]    = ze;
     state[7]    = c1;
-    state[8]    = SIMD_XOR(N, k1);
+    state[8]    = k1;
     state[9]    = ze;
-    state[10]   = k1;
+    state[10]   = SIMD_XOR(N, k1);
     state[11]   = c0;
     state[12]   = c1;
     state[13]   = k1;
     state[14]   = ze;
     state[15]   = SIMD_XOR(c0, c1);
 
-    /* 32 consecutive updates with C0 */
-    DATA128b tmp[STATE];
-    init_update(state, tmp, c0);
-    init_update(state, tmp, c0);
+    init_update(state, k0, k1);
+    init_update(state, k0, k1);
 
-    state[9]  = SIMD_XOR(state[9], k0);
-    state[13] = SIMD_XOR(state[13], k1);
     memcpy(state_opaque->opaque, state, sizeof(state));
 }
 
@@ -306,14 +486,14 @@ HiAE_absorb_software(HiAE_state_t *state_opaque, const uint8_t *ad, size_t len)
         return;
 
     for (; i < prefix; i += UNROLL_BLOCK_SIZE) {
-        ad_update(state, tmp, ad, i);
+        ad_update(state, ad, i);
     }
 
     size_t pad = len % BLOCK_SIZE;
     len -= pad;
     for (; i < len; i += BLOCK_SIZE) {
         M[0] = SIMD_LOAD(ad + i);
-        update_state_offset(state, tmp, M[0], 0);
+        update_state_offset(state, M[0], 0);
         state_shift(state, tmp);
     }
     if (pad != 0) {
@@ -321,7 +501,7 @@ HiAE_absorb_software(HiAE_state_t *state_opaque, const uint8_t *ad, size_t len)
         memset(buf, 0x00, sizeof(buf));
         memcpy(buf, ad + len, pad);
         M[0] = SIMD_LOAD(buf);
-        update_state_offset(state, tmp, M[0], 0);
+        update_state_offset(state, M[0], 0);
         state_shift(state, tmp);
     }
     memcpy(state_opaque->opaque, state, sizeof(state));
@@ -336,10 +516,10 @@ HiAE_finalize_software(HiAE_state_t *state_opaque, uint64_t ad_len, uint64_t msg
     uint64_t lens[2];
     lens[0] = ad_len * 8;
     lens[1] = msg_len * 8;
-    DATA128b temp, tmp[STATE];
+    DATA128b temp;
     temp = SIMD_LOAD((uint8_t *) lens);
-    init_update(state, tmp, temp);
-    init_update(state, tmp, temp);
+    init_update(state, temp, temp);
+    init_update(state, temp, temp);
     temp = state[0];
     for (size_t i = 1; i < STATE; ++i) {
         temp = SIMD_XOR(temp, state[i]);
@@ -396,7 +576,7 @@ HiAE_dec_software(HiAE_state_t *state_opaque, uint8_t *mi, const uint8_t *ci, si
     DATA128b M[STATE], C[STATE], tmp[STATE];
 
     for (size_t i = 0; i < prefix; i += UNROLL_BLOCK_SIZE) {
-        decrypt_chunk(state, tmp, ci, mi, i);
+        decrypt_chunk(state, ci, mi, i);
     }
 
     size_t pad = rest % BLOCK_SIZE;
@@ -404,7 +584,7 @@ HiAE_dec_software(HiAE_state_t *state_opaque, uint8_t *mi, const uint8_t *ci, si
 
     for (size_t i = 0; i < rest; i += BLOCK_SIZE) {
         C[0] = SIMD_LOAD(ci + i + prefix);
-        M[0] = dec_offset(state, tmp, C[0], 0);
+        M[0] = dec_offset(state, C[0], 0);
         state_shift(state, tmp);
         SIMD_STORE(mi + i + prefix, M[0]);
     }
@@ -418,7 +598,7 @@ HiAE_dec_software(HiAE_state_t *state_opaque, uint8_t *mi, const uint8_t *ci, si
         M[0] = SIMD_LOAD(mask);
         C[0] = keystream_block(state, C[0], 0);
         C[0] = SIMD_AND(C[0], M[0]);
-        update_state_offset(state, tmp, C[0], 0);
+        update_state_offset(state, C[0], 0);
         state_shift(state, tmp);
         SIMD_STORE(buf, C[0]);
         memcpy(mi + rest + prefix, buf, pad);
@@ -539,4 +719,4 @@ const HiAE_impl_t hiae_software_impl = { .name                 = "Software",
                                          .decrypt              = HiAE_decrypt_software,
                                          .mac                  = HiAE_mac_software };
 
-#endif // !defined(__AES__) && !defined(__ARM_FEATURE_CRYPTO)
+#endif /* !HIAE_HAS_HW_AES */
