@@ -101,17 +101,49 @@ cd <algorithm-directory>
 
 ## Performance Results
 
-### Apple Silicon M4
+### Apple Silicon M5 Max (Apple clang 21)
 
-These plots predate the keystream-XOR benchmark paths, so what they label as encryption-only still includes tag generation and verification. They need a fresh run before they can be compared with the Zen 4 ones below.
+Measured with Apple clang 21.0.0 and OpenSSL 3.6.4 on macOS 26.
+Nothing here locks the CPU frequency the way the Zen 4 setup below does, so every number is the per-point median of three full passes.
+For messages of 4 KB and up the three passes agreed within 3.2%, with one disturbed AES-GCM point as the only exception.
+
+The cycles-per-byte column that the benchmarks print is meaningless on this platform: `cntvct_el0` is a fixed 1 GHz system counter rather than the core clock, so only the throughput figures are used here.
 
 <p align="center">
-  <img src=".media/m4/throughput_comparison_m4.png" width="600" alt="M4 throughput, encryption against decryption">
+  <img src=".media/m5/throughput_comparison_m5.png" width="600" alt="M5 AEAD throughput, encryption against decryption">
 </p>
 
+At 64 KB, in Gbps:
+
+| Algorithm    | Keystream | AEAD encryption | AEAD decryption | Encryption / decryption |
+| ------------ | --------: | --------------: | --------------: | ----------------------: |
+| HiAE         |     416.3 |           261.6 |           167.9 |                   1.56x |
+| ROCCA-S      |     225.5 |           203.9 |           136.4 |                   1.49x |
+| AEGIS-128x2  |     195.5 |           191.2 |           192.5 |                   0.99x |
+| HiAEx2       |     280.6 |           175.6 |           136.1 |                   1.29x |
+| HiAEx4       |     197.6 |           142.0 |           124.2 |                   1.14x |
+| AES-128-GCM  |     155.9 |            69.2 |            68.4 |                   1.01x |
+
+The encryption and decryption gap has the same shape as on Zen 4, and for the same reason: HiAE and ROCCA-S recover the message block only after the AES round has completed, which lengthens the state-update chain, while AEGIS keeps its keystream a couple of XORs away from the state and decrypts as fast as it encrypts.
+Within the HiAE family, more lanes still narrow the gap, from 1.56x for HiAE down to 1.14x for HiAEx4.
+
+Where the two machines disagree is on the multi-lane HiAE variants, the ones that run two or four independent 128-bit chains per block.
+On Zen 4 they lead by a wide margin; here every doubling of the lane count costs throughput, and plain HiAE wins.
+The state is the reason.
+HiAE keeps 16 128-bit blocks, which fits in half of the 32 NEON registers, but HiAEx2 needs all 32 for the state alone and HiAEx4 needs 64.
+Counting stack traffic in the compiled encryption loops gives 1.31 vector loads and stores per AES instruction for HiAE, 3.25 for HiAEx2 and 6.10 for HiAEx4.
+The same state maps very differently on AVX-512, where the four lanes of a HiAEx4 block share one 512-bit register and the whole state occupies 16 of the 32 available ones.
+
 <p align="center">
-  <img src=".media/m4/encryption_throughput_m4.png" width="600" alt="M4 encryption throughput by message size">
+  <img src=".media/m5/encryption_throughput_m5.png" width="600" alt="M5 keystream throughput by message size">
 </p>
+
+The second plot is the keystream-only path, where decryption is the same XOR as encryption and there is nothing separate to show.
+HiAE is still climbing at 64 KB, and the multi-lane variants need large messages before their lanes start to pay: HiAEx2 only passes ROCCA-S around 8 KB and never catches single-lane HiAE.
+
+AEGIS-128x2 is the one algorithm whose AEAD throughput is essentially its keystream throughput, 191.2 against 195.5 Gbps.
+The others lose much more, HiAE most of all at 261.6 against 416.3.
+A zero-filled input removes the three XORs that fold the message block back into a HiAE state and leaves only the two AES rounds, whereas in AEGIS the same XORs sit off the critical path of an update that already runs eight AES rounds.
 
 ### AMD Zen 4 (Ryzen 7 7700, clang 21)
 
