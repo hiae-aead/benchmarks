@@ -15,7 +15,7 @@ ifeq ($(findstring clang,$(CC)),)
 endif
 
 # Directory list for algorithm implementations
-INTEL_DIRS = aegis-128x2-aesni aegis-128x2-vaes aegis-128x4-avx512 aegis-128x4-avx512vl
+INTEL_DIRS = aegis-128x2-aesni aegis-128x2-vaes aegis-128x4-avx512
 COMMON_DIRS = aes128-gcm-openssl hiae hiaex2 hiaex4 rocca-s
 ARM_DIRS = aegis-128x2-arm
 
@@ -56,10 +56,6 @@ aegis-128x2-vaes:
 
 aegis-128x4-avx512:
 	@echo "Building AEGIS-128x4 (AVX-512)..."
-	@$(MAKE) -C $@ all
-
-aegis-128x4-avx512vl:
-	@echo "Building AEGIS-128x4 (AVX-512VL)..."
 	@$(MAKE) -C $@ all
 
 aes128-gcm-openssl:
@@ -208,7 +204,6 @@ help:
 	@echo "  aegis-128x2-vaes     - AEGIS-128x2 with VAES"
 	@echo "  aegis-128x2-arm      - AEGIS-128x2 for ARM (ARM only)"
 	@echo "  aegis-128x4-avx512   - AEGIS-128x4 with 512-bit VAES"
-	@echo "  aegis-128x4-avx512vl - AEGIS-128x4 with 256-bit VAES and AVX-512VL"
 	@echo "  aes128-gcm-openssl   - AES-128-GCM with OpenSSL"
 	@echo "  hiae                 - HiAE algorithm"
 	@echo "  hiaex2               - HiAEx2 algorithm"
