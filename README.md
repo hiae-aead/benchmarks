@@ -5,7 +5,7 @@ This repository contains cryptographic benchmarking implementations for various 
 ## Included Algorithms
 
 - **AEGIS-128x2** variants (AES-NI, VAES, ARM)
-- **AEGIS-128x4** (AVX-512 optimized)
+- **AEGIS-128x4** variants (AVX-512, AVX-512VL)
 - **AES-128-GCM** (OpenSSL backend)
 - **HiAE** variants (HiAE, HiAEx2, HiAEx4)
 - **ROCCA-S** cipher
@@ -50,7 +50,7 @@ The HiAE, HiAEx2 and HiAEx4 directories contain a copy of the [libhiae](https://
 
 The build system automatically detects your architecture and builds appropriate implementations:
 
-- **x86_64/Intel**: AEGIS-128x2 (AES-NI, VAES), AEGIS-128x4 (AVX-512), AES-128-GCM, HiAE, HiAEx2, HiAEx4, ROCCA-S
+- **x86_64/Intel**: AEGIS-128x2 (AES-NI, VAES), AEGIS-128x4 (AVX-512, AVX-512VL), AES-128-GCM, HiAE, HiAEx2, HiAEx4, ROCCA-S
 - **ARM64**: AEGIS-128x2 (ARM crypto extensions), AES-128-GCM, HiAE, HiAEx2, HiAEx4, ROCCA-S
 
 Note: Some implementations require specific CPU features:
@@ -58,8 +58,15 @@ Note: Some implementations require specific CPU features:
 - AEGIS-128x2-aesni: AES-NI, AVX
 - AEGIS-128x2-vaes: AES-NI, AVX2, VAES
 - AEGIS-128x4-avx512: AVX-512F, VAES
+- AEGIS-128x4-avx512vl: AVX-512F, AVX-512VL, VAES
 - AES-128-GCM: OpenSSL library
 - HiAEx4 on x86_64: AVX-512F, AVX-512VL and VAES, otherwise it falls back to a much slower portable implementation
+
+The AEGIS-128x4 implementations include the optimizations from libaegis commit `7cc9284`.
+The `avx512` variant uses 512-bit vectors, while `avx512vl` splits each state block into two 256-bit vectors and uses AVX-512VL instructions and registers.
+This gives CPUs that execute 512-bit AES operations in two passes more freedom to schedule the work.
+Both variants are built and benchmarked separately so their performance can be compared on the same CPU.
+Their tests check libaegis vectors, block boundaries, in-place operation, and authentication failures.
 
 ## Performance Testing
 

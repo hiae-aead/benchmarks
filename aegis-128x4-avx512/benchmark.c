@@ -6,6 +6,10 @@
 #include <string.h>
 #include <time.h>
 
+#ifndef AEGIS_IMPLEMENTATION
+#    define AEGIS_IMPLEMENTATION "Intel AVX512 + VAES optimized"
+#endif
+
 #define BASE_ITERATIONS  10000
 #define WARMUP_TIME      0.5
 #define COMPUTATION_TIME 3.0
@@ -346,12 +350,12 @@ main(int argc, char *argv[])
 
     if (csv_output) {
         printf("# AEGIS-128x4 Performance Test\n");
-        printf("# Implementation: Intel AVX512 + VAES optimized\n");
+        printf("# Implementation: %s\n", AEGIS_IMPLEMENTATION);
     } else {
         printf("=============================================================\n");
         printf("                AEGIS-128x4 Performance Test                \n");
         printf("=============================================================\n");
-        printf("Implementation: Intel AVX512 + VAES optimized\n");
+        printf("Implementation: %s\n", AEGIS_IMPLEMENTATION);
     }
 
     double       timer_resolution = 1.0;
