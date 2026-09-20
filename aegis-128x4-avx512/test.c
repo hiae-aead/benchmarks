@@ -3,7 +3,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "common.h"
 #include "crypto_aead.h"
+#include "../aegis-stream-test.h"
 
 #define CHECK(condition)                                                       \
     do {                                                                       \
@@ -237,6 +239,7 @@ main(void)
     for (i = 0; i < CRYPTO_NPUBBYTES; i++) {
         nonce[i] = (unsigned char) (i + 16);
     }
+    CHECK(test_stream_xor() == 0);
     CHECK(test_vector(key, nonce) == 0);
     CHECK(test_short_ciphertext(key, nonce) == 0);
     for (i = 0; i < count; i++) {

@@ -138,7 +138,7 @@ init_update(DATA128b *state, DATA128b c0, DATA128b c1)
 static inline void
 ad_update(DATA128b *state, const uint8_t *ad, size_t i)
 {
-    DATA128b M[16];
+    HIAE_ALIGN(64) DATA128b M[16];
 
     PREFETCH_READ(ad + i + UNROLL_BLOCK_SIZE, 0);
     PREFETCH_READ(ad + i + UNROLL_BLOCK_SIZE + 128, 0);
@@ -180,7 +180,7 @@ ad_update(DATA128b *state, const uint8_t *ad, size_t i)
 static inline void
 encrypt_chunk(DATA128b *state, const uint8_t *mi, uint8_t *ci, size_t i)
 {
-    DATA128b M[16], C[16];
+    HIAE_ALIGN(64) DATA128b M[16], C[16];
 
     // Prefetch next chunk for reading
     PREFETCH_READ(mi + i + PREFETCH_DISTANCE, 0);
@@ -240,7 +240,7 @@ encrypt_chunk(DATA128b *state, const uint8_t *mi, uint8_t *ci, size_t i)
 static inline void
 decrypt_chunk(DATA128b *state, DATA128b *tmp, const uint8_t *ci, uint8_t *mi, size_t i)
 {
-    DATA128b M[16], C[16];
+    HIAE_ALIGN(64) DATA128b M[16], C[16];
 
     // Prefetch next chunk for reading
     PREFETCH_READ(ci + i + PREFETCH_DISTANCE, 0);
@@ -300,7 +300,7 @@ decrypt_chunk(DATA128b *state, DATA128b *tmp, const uint8_t *ci, uint8_t *mi, si
 static void
 HiAE_init_arm(HiAE_state_t *state_opaque, const uint8_t *key, const uint8_t *nonce)
 {
-    DATA128b state[STATE];
+    HIAE_ALIGN(64) DATA128b state[STATE];
     memset(&state, 0, sizeof state);
     DATA128b c0 = SIMD_LOAD(C0);
     DATA128b c1 = SIMD_LOAD(C1);
@@ -335,12 +335,12 @@ HiAE_init_arm(HiAE_state_t *state_opaque, const uint8_t *key, const uint8_t *non
 static void
 HiAE_absorb_arm(HiAE_state_t *state_opaque, const uint8_t *ad, size_t len)
 {
-    DATA128b state[STATE];
+    HIAE_ALIGN(64) DATA128b state[STATE];
     memcpy(state, state_opaque->opaque, sizeof(state));
     size_t   i      = 0;
     size_t   rest   = len % UNROLL_BLOCK_SIZE;
     size_t   prefix = len - rest;
-    DATA128b M[16];
+    HIAE_ALIGN(64) DATA128b M[16];
     if (len == 0)
         return;
 
@@ -356,7 +356,7 @@ HiAE_absorb_arm(HiAE_state_t *state_opaque, const uint8_t *ad, size_t len)
         state_shift(state);
     }
     if (pad != 0) {
-        uint8_t buf[BLOCK_SIZE];
+        HIAE_ALIGN(64) uint8_t buf[BLOCK_SIZE];
         memset(buf, 0x00, sizeof(buf));
         memcpy(buf, ad + len, pad);
         M[0] = SIMD_LOAD(buf);
@@ -369,9 +369,9 @@ HiAE_absorb_arm(HiAE_state_t *state_opaque, const uint8_t *ad, size_t len)
 static void
 HiAE_finalize_arm(HiAE_state_t *state_opaque, uint64_t ad_len, uint64_t msg_len, uint8_t *tag)
 {
-    DATA128b state[STATE];
+    HIAE_ALIGN(64) DATA128b state[STATE];
     memcpy(state, state_opaque->opaque, sizeof(state));
-    uint64_t lens[2];
+    HIAE_ALIGN(64) uint64_t lens[2];
     lens[0] = ad_len * 8;
     lens[1] = msg_len * 8;
     DATA128b temp;
@@ -389,13 +389,13 @@ HiAE_finalize_arm(HiAE_state_t *state_opaque, uint64_t ad_len, uint64_t msg_len,
 static void
 HiAE_enc_arm(HiAE_state_t *state_opaque, uint8_t *ci, const uint8_t *mi, size_t size)
 {
-    DATA128b state[STATE];
+    HIAE_ALIGN(64) DATA128b state[STATE];
     memcpy(state, state_opaque->opaque, sizeof(state));
     size_t rest   = size % UNROLL_BLOCK_SIZE;
     size_t prefix = size - rest;
     if (size == 0)
         return;
-    DATA128b M[STATE], C[STATE];
+    HIAE_ALIGN(64) DATA128b M[STATE], C[STATE];
 
     // Main processing loop with prefetching
     for (size_t i = 0; i < prefix; i += UNROLL_BLOCK_SIZE) {
@@ -414,7 +414,7 @@ HiAE_enc_arm(HiAE_state_t *state_opaque, uint8_t *ci, const uint8_t *mi, size_t 
         SIMD_STORE(ci + i + prefix, C[0]);
     }
     if (pad != 0) {
-        uint8_t buf[BLOCK_SIZE];
+        HIAE_ALIGN(64) uint8_t buf[BLOCK_SIZE];
         memcpy(buf, mi + rest + prefix, pad);
         memset(buf + pad, 0, BLOCK_SIZE - pad);
         M[0] = SIMD_LOAD(buf);
@@ -435,11 +435,11 @@ HiAE_enc_partial_noupdate_arm(HiAE_state_t  *state_opaque,
     if (size == 0)
         return;
 
-    DATA128b state[STATE];
+    HIAE_ALIGN(64) DATA128b state[STATE];
     memcpy(state, state_opaque->opaque, sizeof(state));
 
-    DATA128b M[1], C[1];
-    uint8_t  buf[BLOCK_SIZE];
+    HIAE_ALIGN(64) DATA128b M[1], C[1];
+    HIAE_ALIGN(64) uint8_t  buf[BLOCK_SIZE];
 
     memcpy(buf, mi, size);
     memset(buf + size, 0, BLOCK_SIZE - size);
@@ -458,12 +458,12 @@ HiAE_dec_partial_noupdate_arm(HiAE_state_t  *state_opaque,
     if (size == 0)
         return;
 
-    DATA128b state[STATE];
+    HIAE_ALIGN(64) DATA128b state[STATE];
     memcpy(state, state_opaque->opaque, sizeof(state));
 
-    DATA128b M[1], C[1];
-    uint8_t  buf[BLOCK_SIZE];
-    uint8_t  mask[BLOCK_SIZE];
+    HIAE_ALIGN(64) DATA128b M[1], C[1];
+    HIAE_ALIGN(64) uint8_t  buf[BLOCK_SIZE];
+    HIAE_ALIGN(64) uint8_t  mask[BLOCK_SIZE];
 
     memcpy(buf, ci, size);
     memset(mask, 0xff, size);
@@ -479,13 +479,13 @@ HiAE_dec_partial_noupdate_arm(HiAE_state_t  *state_opaque,
 static void
 HiAE_dec_arm(HiAE_state_t *state_opaque, uint8_t *mi, const uint8_t *ci, size_t size)
 {
-    DATA128b state[STATE];
+    HIAE_ALIGN(64) DATA128b state[STATE];
     memcpy(state, state_opaque->opaque, sizeof(state));
     size_t rest   = size % UNROLL_BLOCK_SIZE;
     size_t prefix = size - rest;
     if (size == 0)
         return;
-    DATA128b M[STATE], C[STATE], tmp[STATE];
+    HIAE_ALIGN(64) DATA128b M[STATE], C[STATE], tmp[STATE];
 
     // Main processing loop with prefetching
     for (size_t i = 0; i < prefix; i += UNROLL_BLOCK_SIZE) {
@@ -505,8 +505,8 @@ HiAE_dec_arm(HiAE_state_t *state_opaque, uint8_t *mi, const uint8_t *ci, size_t 
         SIMD_STORE(mi + i + prefix, M[0]);
     }
     if (pad != 0) {
-        uint8_t buf[BLOCK_SIZE];
-        uint8_t mask[BLOCK_SIZE];
+        HIAE_ALIGN(64) uint8_t buf[BLOCK_SIZE];
+        HIAE_ALIGN(64) uint8_t mask[BLOCK_SIZE];
         memcpy(buf, ci + rest + prefix, pad);
         memset(mask, 0xff, pad);
         memset(mask + pad, 0x00, BLOCK_SIZE - pad);
@@ -552,7 +552,7 @@ HiAE_decrypt_arm(const uint8_t *key,
                  const uint8_t *tag)
 {
     HiAE_state_t state;
-    uint8_t      computed_tag[HIAE_MACBYTES];
+    HIAE_ALIGN(64) uint8_t      computed_tag[HIAE_MACBYTES];
     HiAE_init_arm(&state, key, nonce);
     HiAE_absorb_arm(&state, ad, ad_len);
     HiAE_dec_arm(&state, msg, ct, ct_len);
@@ -573,11 +573,14 @@ HiAE_mac_arm(
     return 0;
 }
 
+#    include "HiAE_stream_xor.h"
+
 const HiAE_impl_t hiae_arm_impl = { .name                 = "ARM NEON",
                                     .init                 = HiAE_init_arm,
                                     .absorb               = HiAE_absorb_arm,
                                     .finalize             = HiAE_finalize_arm,
                                     .enc                  = HiAE_enc_arm,
+                                    .stream_xor           = stream_xor,
                                     .dec                  = HiAE_dec_arm,
                                     .enc_partial_noupdate = HiAE_enc_partial_noupdate_arm,
                                     .dec_partial_noupdate = HiAE_dec_partial_noupdate_arm,

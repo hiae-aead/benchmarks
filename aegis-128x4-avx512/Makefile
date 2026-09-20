@@ -52,5 +52,5 @@ clean:
 
 # Dependencies
 encrypt.o: encrypt.c api.h common.h crypto_aead.h crypto_declassify.h crypto_verify_16.h crypto_verify_32.h 128x4-common.h
-test.o: test.c crypto_aead.h api.h
+test.o: test.c common.h crypto_aead.h api.h ../aegis-stream-test.h
 benchmark.o: benchmark.c crypto_aead.h timing.h api.h

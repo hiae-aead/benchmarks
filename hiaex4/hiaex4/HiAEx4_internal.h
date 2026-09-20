@@ -14,6 +14,7 @@ typedef struct {
     void (*finalize)(HiAEx4_state_t *state, uint64_t ad_len, uint64_t msg_len, uint8_t *tag);
     void (*finalize_mac)(HiAEx4_state_t *state, uint64_t data_len, uint8_t *tag);
     void (*enc)(HiAEx4_state_t *state, uint8_t *ci, const uint8_t *mi, size_t size);
+    void (*stream_xor)(HiAEx4_state_t *state, uint8_t *ci, const uint8_t *mi, size_t size);
     void (*dec)(HiAEx4_state_t *state, uint8_t *mi, const uint8_t *ci, size_t size);
     void (*enc_partial_noupdate)(HiAEx4_state_t *state, uint8_t *ci, const uint8_t *mi,
                                  size_t size);
@@ -59,9 +60,9 @@ typedef struct {
 #endif
 
 /* Internal constant arrays */
-static const uint8_t C0[BLOCK_SIZE] = { HIAE_C0_BYTES, HIAE_C0_BYTES, HIAE_C0_BYTES,
+HIAE_ALIGN(64) static const uint8_t C0[BLOCK_SIZE] = { HIAE_C0_BYTES, HIAE_C0_BYTES, HIAE_C0_BYTES,
                                         HIAE_C0_BYTES };
-static const uint8_t C1[BLOCK_SIZE] = { HIAE_C1_BYTES, HIAE_C1_BYTES, HIAE_C1_BYTES,
+HIAE_ALIGN(64) static const uint8_t C1[BLOCK_SIZE] = { HIAE_C1_BYTES, HIAE_C1_BYTES, HIAE_C1_BYTES,
                                         HIAE_C1_BYTES };
 
 /* Internal helper functions */

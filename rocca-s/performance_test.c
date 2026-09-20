@@ -51,9 +51,9 @@ speed_test_ad_work(size_t len)
 {
     perf_result_t result = { 0 };
 
-    uint8_t key[ROCCA_KEY_SIZE];
+    ROCCA_ALIGN uint8_t key[ROCCA_KEY_SIZE];
     memset(key, 1, ROCCA_KEY_SIZE);
-    uint8_t iv[ROCCA_IV_SIZE];
+    ROCCA_ALIGN uint8_t iv[ROCCA_IV_SIZE];
     memset(iv, 1, ROCCA_IV_SIZE);
 
     uint8_t *ad = rocca_aligned_alloc(BUFFER_ALIGNMENT, len);
@@ -63,8 +63,8 @@ speed_test_ad_work(size_t len)
     }
     memset(ad, 1, len);
 
-    uint8_t tag[ROCCA_TAG_SIZE];
-    rocca_context ctx;
+    ROCCA_ALIGN uint8_t tag[ROCCA_TAG_SIZE];
+    ROCCA_ALIGN rocca_context ctx;
 
     // Warmup phase
     rocca_timer_t warmup_timer;
@@ -126,9 +126,9 @@ speed_test_encode_work(size_t len, int AEAD)
 {
     perf_result_t result = { 0 };
 
-    uint8_t key[ROCCA_KEY_SIZE];
+    ROCCA_ALIGN uint8_t key[ROCCA_KEY_SIZE];
     memset(key, 1, ROCCA_KEY_SIZE);
-    uint8_t iv[ROCCA_IV_SIZE];
+    ROCCA_ALIGN uint8_t iv[ROCCA_IV_SIZE];
     memset(iv, 1, ROCCA_IV_SIZE);
 
     size_t   ad_len = AEAD ? 48 : 0;
@@ -153,8 +153,8 @@ speed_test_encode_work(size_t len, int AEAD)
     }
     memset(msg, 0x1, len);
 
-    uint8_t tag[ROCCA_TAG_SIZE];
-    rocca_context ctx;
+    ROCCA_ALIGN uint8_t tag[ROCCA_TAG_SIZE];
+    ROCCA_ALIGN rocca_context ctx;
 
     // Warmup phase
     rocca_timer_t warmup_timer;
@@ -163,9 +163,13 @@ speed_test_encode_work(size_t len, int AEAD)
 
     do {
         rocca_init(&ctx, key, iv);
-        if (ad) rocca_add_ad(&ctx, ad, ad_len);
-        rocca_encrypt(&ctx, ct, msg, len);
-        rocca_tag(&ctx, tag);
+        if (AEAD) {
+            rocca_add_ad(&ctx, ad, ad_len);
+            rocca_encrypt(&ctx, ct, msg, len);
+            rocca_tag(&ctx, tag);
+        } else {
+            rocca_stream_xor(&ctx, ct, msg, len);
+        }
         warmup_iterations++;
         rocca_timer_stop(&warmup_timer);
     } while (rocca_timer_elapsed_seconds(&warmup_timer) < WARMUP_TIME);
@@ -187,9 +191,13 @@ speed_test_encode_work(size_t len, int AEAD)
 
         for (size_t iter = 0; iter < iterations_per_measurement; iter++) {
             rocca_init(&ctx, key, iv);
-            if (ad) rocca_add_ad(&ctx, ad, ad_len);
-            rocca_encrypt(&ctx, ct, msg, len);
-            rocca_tag(&ctx, tag);
+            if (AEAD) {
+                rocca_add_ad(&ctx, ad, ad_len);
+                rocca_encrypt(&ctx, ct, msg, len);
+                rocca_tag(&ctx, tag);
+            } else {
+                rocca_stream_xor(&ctx, ct, msg, len);
+            }
         }
 
         rocca_timer_stop(&timer);
@@ -222,9 +230,9 @@ speed_test_decode_work(size_t len, int AEAD)
 {
     perf_result_t result = { 0 };
 
-    uint8_t key[ROCCA_KEY_SIZE];
+    ROCCA_ALIGN uint8_t key[ROCCA_KEY_SIZE];
     memset(key, 1, ROCCA_KEY_SIZE);
-    uint8_t iv[ROCCA_IV_SIZE];
+    ROCCA_ALIGN uint8_t iv[ROCCA_IV_SIZE];
     memset(iv, 1, ROCCA_IV_SIZE);
 
     size_t   ad_len = AEAD ? 48 : 0;
@@ -251,14 +259,18 @@ speed_test_decode_work(size_t len, int AEAD)
     }
     memset(msg, 0x1, len);
 
-    uint8_t tag[ROCCA_TAG_SIZE];
-    rocca_context ctx;
+    ROCCA_ALIGN uint8_t tag[ROCCA_TAG_SIZE];
+    ROCCA_ALIGN rocca_context ctx;
 
     // First encrypt to get ciphertext
     rocca_init(&ctx, key, iv);
-    if (ad) rocca_add_ad(&ctx, ad, ad_len);
-    rocca_encrypt(&ctx, ct, msg, len);
-    rocca_tag(&ctx, tag);
+    if (AEAD) {
+        rocca_add_ad(&ctx, ad, ad_len);
+        rocca_encrypt(&ctx, ct, msg, len);
+        rocca_tag(&ctx, tag);
+    } else {
+        rocca_stream_xor(&ctx, ct, msg, len);
+    }
 
     // Warmup phase
     rocca_timer_t warmup_timer;
@@ -267,9 +279,13 @@ speed_test_decode_work(size_t len, int AEAD)
 
     do {
         rocca_init(&ctx, key, iv);
-        if (ad) rocca_add_ad(&ctx, ad, ad_len);
-        rocca_decrypt(&ctx, dec, ct, len);
-        rocca_tag(&ctx, tag);
+        if (AEAD) {
+            rocca_add_ad(&ctx, ad, ad_len);
+            rocca_decrypt(&ctx, dec, ct, len);
+            rocca_tag(&ctx, tag);
+        } else {
+            rocca_stream_xor(&ctx, dec, ct, len);
+        }
         warmup_iterations++;
         rocca_timer_stop(&warmup_timer);
     } while (rocca_timer_elapsed_seconds(&warmup_timer) < WARMUP_TIME);
@@ -292,9 +308,13 @@ speed_test_decode_work(size_t len, int AEAD)
 
         for (size_t iter = 0; iter < iterations_per_measurement; iter++) {
             rocca_init(&ctx, key, iv);
-            if (ad) rocca_add_ad(&ctx, ad, ad_len);
-            rocca_decrypt(&ctx, dec, ct, len);
-            rocca_tag(&ctx, tag);
+            if (AEAD) {
+                rocca_add_ad(&ctx, ad, ad_len);
+                rocca_decrypt(&ctx, dec, ct, len);
+                rocca_tag(&ctx, tag);
+            } else {
+                rocca_stream_xor(&ctx, dec, ct, len);
+            }
         }
 
         rocca_timer_stop(&timer);

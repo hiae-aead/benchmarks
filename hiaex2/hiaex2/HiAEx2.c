@@ -474,6 +474,13 @@ HiAEx2_enc(HiAEx2_state_t *state, uint8_t *ci, const uint8_t *mi, size_t size)
 }
 
 void
+HiAEx2_stream_xor(HiAEx2_state_t *state, uint8_t *ci, const uint8_t *mi, size_t size)
+{
+    hiaex2_init_dispatch();
+    hiaex2_impl->stream_xor(state, ci, mi, size);
+}
+
+void
 HiAEx2_dec(HiAEx2_state_t *state, uint8_t *mi, const uint8_t *ci, size_t size)
 {
     hiaex2_init_dispatch();

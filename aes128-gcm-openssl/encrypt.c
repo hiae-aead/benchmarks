@@ -1,8 +1,40 @@
+#include <limits.h>
 #include <string.h>
 #include <openssl/evp.h>
 #include <openssl/err.h>
 #include "api.h"
 #include "crypto_aead.h"
+
+int
+crypto_stream_xor(unsigned char *out, const unsigned char *in, unsigned long long len,
+                  const unsigned char *npub, const unsigned char *k)
+{
+    EVP_CIPHER_CTX *ctx;
+    CRYPTO_ALIGN(64) unsigned char iv[16] = { 0 };
+    int written;
+
+    if (len > INT_MAX || npub == NULL || k == NULL ||
+        (len != 0 && (out == NULL || in == NULL))) {
+        return -1;
+    }
+    if (len == 0) {
+        return 0;
+    }
+    memcpy(iv, npub, CRYPTO_NPUBBYTES);
+    iv[15] = 2; /* GCM starts message encryption at nonce || 00000002. */
+    ctx = EVP_CIPHER_CTX_new();
+    if (ctx == NULL) {
+        return -1;
+    }
+    if (EVP_EncryptInit_ex(ctx, EVP_aes_128_ctr(), NULL, k, iv) != 1 ||
+        EVP_EncryptUpdate(ctx, out, &written, in, (int) len) != 1 ||
+        written != (int) len) {
+        EVP_CIPHER_CTX_free(ctx);
+        return -1;
+    }
+    EVP_CIPHER_CTX_free(ctx);
+    return 0;
+}
 
 int crypto_aead_encrypt(
     unsigned char *c, unsigned long long *clen,

@@ -105,8 +105,6 @@ test: all
 		if [ -x "$$dir/$${dir}_test" ]; then \
 			echo "Testing $$dir..."; \
 			(cd $$dir && ./$${dir}_test) || exit 1; \
-		elif [ "$$dir" = "rocca-s" ]; then \
-			echo "Skipping $$dir (benchmark only)"; \
 		fi; \
 	done
 ifneq ($(findstring x86_64,$(ARCH))$(findstring amd64,$(ARCH))$(findstring i386,$(ARCH))$(findstring i686,$(ARCH)),)

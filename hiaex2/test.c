@@ -1,6 +1,7 @@
 // Checks the code being benchmarked against known test vectors.
 
 #include "crypto_aead.h"
+#include "HiAEx2.h"
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -107,9 +108,82 @@ run_test_vector(const TestVector *tv)
     return NULL;
 }
 
-int
-main(void)
+static int
+run_stream_tests(void)
 {
+    HIAE_ALIGN(64) uint8_t key[CRYPTO_KEYBYTES], nonce[CRYPTO_NPUBBYTES];
+    HIAE_ALIGN(64) uint8_t zero[MAX_LEN] = { 0 };
+    HIAE_ALIGN(64) uint8_t input[MAX_LEN], expected[MAX_LEN];
+    HIAE_ALIGN(64) uint8_t output[MAX_LEN + 128];
+    HiAEx2_state_t reference, actual;
+    const size_t lengths[] = { 0, 1, 31, 32, 33,
+                               63, 64, 65,
+                               511, 512, 513,
+                               1023, 1024, 1025, MAX_LEN };
+
+    for (size_t i = 0; i < sizeof key; i++) {
+        key[i] = (uint8_t) (i * 7 + 3);
+    }
+    for (size_t i = 0; i < sizeof nonce; i++) {
+        nonce[i] = (uint8_t) (i * 11 + 5);
+    }
+    for (size_t i = 0; i < sizeof input; i++) {
+        input[i] = (uint8_t) (i * 13 + 17);
+    }
+    if ((uintptr_t) &reference % 64 != 0 || (uintptr_t) &actual % 64 != 0) {
+        return 1;
+    }
+    for (size_t test = 0; test < sizeof lengths / sizeof lengths[0]; test++) {
+        const size_t len = lengths[test];
+        uint8_t *const out = output + 64;
+
+        HiAEx2_init(&reference, key, nonce);
+        HiAEx2_enc(&reference, expected, zero, len);
+        for (size_t i = 0; i < len; i++) {
+            expected[i] ^= input[i];
+        }
+        memset(output, 0xa5, sizeof output);
+        HiAEx2_init(&actual, key, nonce);
+        HiAEx2_stream_xor(&actual, out, input, len);
+        if (memcmp(out, expected, len) != 0 ||
+            memcmp(actual.opaque, reference.opaque, sizeof actual.opaque) != 0 ||
+            output[63] != 0xa5 || out[len] != 0xa5) {
+            printf("%s stream output or state mismatch at %zu bytes\n", NAME, len);
+            return 1;
+        }
+        memcpy(out, input, len);
+        if (crypto_stream_xor(out, out, len, nonce, key) != 0 ||
+            memcmp(out, expected, len) != 0 || output[63] != 0xa5 || out[len] != 0xa5 ||
+            crypto_stream_xor(out, out, len, nonce, key) != 0 ||
+            memcmp(out, input, len) != 0) {
+            printf("%s in-place stream XOR failed at %zu bytes\n", NAME, len);
+            return 1;
+        }
+        HiAEx2_init(&actual, key, nonce);
+        HiAEx2_stream_xor(&actual, out, input, len - len % 32);
+        HiAEx2_stream_xor(&actual, out + len - len % 32,
+                         input + len - len % 32, len % 32);
+        if (memcmp(out, expected, len) != 0 ||
+            memcmp(actual.opaque, reference.opaque, sizeof actual.opaque) != 0) {
+            printf("%s split stream XOR failed at %zu bytes\n", NAME, len);
+            return 1;
+        }
+    }
+    if (crypto_stream_xor(NULL, NULL, 0, nonce, key) != 0) {
+        return 1;
+    }
+    printf("%s stream XOR: zero-encryption equivalence, state, boundaries, and in-place tests passed (%s)\n",
+           NAME, HiAEx2_get_implementation_name());
+    return 0;
+}
+
+int
+main(int argc, char **argv)
+{
+    if (argc > 1 && HiAEx2_force_implementation(argv[1]) != 0) {
+        fprintf(stderr, "Unavailable implementation: %s\n", argv[1]);
+        return 1;
+    }
     const size_t count  = sizeof test_vectors / sizeof test_vectors[0];
     int          failed = 0;
 
@@ -122,5 +196,5 @@ main(void)
     }
     printf("%s test vectors: %d passed, %d failed\n", NAME, (int) count - failed, failed);
 
-    return failed > 0;
+    return (failed > 0) | run_stream_tests();
 }

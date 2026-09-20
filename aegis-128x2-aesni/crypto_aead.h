@@ -17,4 +17,10 @@ int crypto_aead_decrypt(unsigned char *m, unsigned long long *mlen,
                        const unsigned char *npub,
                        const unsigned char *k);
 
+/* XORs the input with the keystream from encrypting zeros, without authentication.
+ * Input and output may point to the same buffer. */
+int crypto_stream_xor(unsigned char *out, const unsigned char *in,
+                      unsigned long long len, const unsigned char *npub,
+                      const unsigned char *k);
+
 #endif

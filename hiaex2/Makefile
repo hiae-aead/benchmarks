@@ -19,7 +19,7 @@ BUILD_CFLAGS = $(CFLAGS) -std=c99 -I.
 
 # Copied from libhiae
 HIAEX2_SOURCES = hiaex2/HiAEx2.c hiaex2/HiAEx2_aesni_avx.c hiaex2/HiAEx2_arm.c hiaex2/HiAEx2_arm_sha3.c hiaex2/HiAEx2_software.c hiaex2/HiAEx2_stream.c hiaex2/HiAEx2_vaes_avx2.c
-HIAEX2_HEADERS = HiAEx2.h hiaex2/HiAEx2_internal.h hiaex2/softaes.h common/common.h common/cpu.h
+HIAEX2_HEADERS = HiAEx2.h hiaex2/HiAEx2_internal.h hiaex2/HiAEx2_stream_xor.h hiaex2/softaes.h common/common.h common/cpu.h
 
 TEST_SOURCES = encrypt.c test.c $(HIAEX2_SOURCES)
 TEST_OBJECTS = $(TEST_SOURCES:.c=.o)
@@ -46,6 +46,6 @@ clean:
 .PHONY: all clean
 
 encrypt.o: encrypt.c crypto_aead.h api.h HiAEx2.h
-test.o: test.c crypto_aead.h api.h
+test.o: test.c crypto_aead.h api.h HiAEx2.h
 benchmark.o: benchmark.c crypto_aead.h api.h timing.h
 $(HIAEX2_SOURCES:.c=.o): $(HIAEX2_HEADERS)

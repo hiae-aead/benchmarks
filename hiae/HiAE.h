@@ -33,6 +33,14 @@ extern "C" {
 #    define __attribute__(a)
 #endif
 
+#ifndef HIAE_ALIGN
+#    if defined(_MSC_VER)
+#        define HIAE_ALIGN(x) __declspec(align(x))
+#    else
+#        define HIAE_ALIGN(x) __attribute__((aligned(x)))
+#    endif
+#endif
+
 /**
  * @defgroup constants Cryptographic Constants
  * @brief Core cryptographic parameter sizes for HiAE
@@ -82,7 +90,7 @@ extern "C" {
  * @warning Never modify the contents directly or copy states between operations
  */
 typedef struct {
-    uint8_t opaque[256];
+    HIAE_ALIGN(64) uint8_t opaque[256];
 } HiAE_state_t;
 
 /** @} */
@@ -570,6 +578,14 @@ void HiAE_finalize(HiAE_state_t *state, uint64_t ad_len, uint64_t msg_len, uint8
  * @endcode
  */
 void HiAE_enc(HiAE_state_t *state, uint8_t *ci, const uint8_t *mi, size_t size);
+
+/**
+ * @brief XOR plaintext with the keystream obtained by encrypting zeros.
+ *
+ * This operation provides no authentication and supports in-place processing.
+ * Each call consumes whole blocks, including a zero-padded final partial block.
+ */
+void HiAE_stream_xor(HiAE_state_t *state, uint8_t *ci, const uint8_t *mi, size_t size);
 
 /**
  * @brief Decrypt data incrementally

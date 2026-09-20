@@ -476,6 +476,13 @@ HiAE_enc(HiAE_state_t *state, uint8_t *ci, const uint8_t *mi, size_t size)
 }
 
 void
+HiAE_stream_xor(HiAE_state_t *state, uint8_t *ci, const uint8_t *mi, size_t size)
+{
+    hiae_init_dispatch();
+    hiae_impl->stream_xor(state, ci, mi, size);
+}
+
+void
 HiAE_dec(HiAE_state_t *state, uint8_t *mi, const uint8_t *ci, size_t size)
 {
     hiae_init_dispatch();

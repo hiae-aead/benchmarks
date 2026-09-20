@@ -42,5 +42,5 @@ clean:
 .PHONY: all clean
 
 encrypt.o: encrypt.c $(addprefix $(COMMON_DIR)/,api.h common.h crypto_aead.h crypto_declassify.h crypto_verify_16.h crypto_verify_32.h 128x4-common.h)
-test.o: test.c $(addprefix $(COMMON_DIR)/,test.c crypto_aead.h api.h)
+test.o: test.c ../aegis-stream-test.h $(addprefix $(COMMON_DIR)/,test.c common.h crypto_aead.h api.h)
 benchmark.o: benchmark.c $(addprefix $(COMMON_DIR)/,benchmark.c crypto_aead.h timing.h api.h)

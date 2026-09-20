@@ -9,6 +9,14 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifndef CRYPTO_ALIGN
+#    if defined(_MSC_VER)
+#        define CRYPTO_ALIGN(x) __declspec(align(x))
+#    else
+#        define CRYPTO_ALIGN(x) __attribute__((aligned(x)))
+#    endif
+#endif
+
 #ifdef _WIN32
 #    include <windows.h>
 #    ifdef _MSC_VER

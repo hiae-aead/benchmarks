@@ -63,8 +63,10 @@ Note: Some implementations require specific CPU features:
 - HiAEx4 on x86_64: AVX-512F, AVX-512VL and VAES, otherwise it falls back to a much slower portable implementation
 
 The AEGIS-128x4 implementations include the optimizations from libaegis commit `7cc9284`.
+
 The `avx512` variant uses 512-bit vectors, while `avx512vl` splits each state block into two 256-bit vectors and uses AVX-512VL instructions and registers.
 This gives CPUs that execute 512-bit AES operations in two passes more freedom to schedule the work.
+
 Both variants are built and benchmarked separately so their performance can be compared on the same CPU.
 Their tests check libaegis vectors, block boundaries, in-place operation, and authentication failures.
 
@@ -76,7 +78,20 @@ Benchmarks test multiple message sizes (16B to 64KB) and measure:
 - Cycles per byte
 - Cross-platform performance characteristics
 
-Buffers are page-aligned, so that the results don't depend on where `malloc()` happens to put them. With some placements, the fastest ciphers run up to 25% slower.
+The encryption-only measurements generate the keystream obtained by encrypting zeros, then XOR it with the input.
+The input never feeds back into the cipher state, and decryption uses the same XOR operation.
+
+These measurements include key and nonce setup but no associated data, tag generation, or tag verification.
+
+AES uses OpenSSL's AES-128-CTR for this mode, with the same initial counter as the GCM message encryption.
+
+The AEAD measurements include associated data and authentication.
+
+Message, ciphertext, plaintext output, and associated-data buffers are aligned to 4096 bytes so their placement stays consistent between runs.
+
+Benchmark keys and nonces, along with local cipher states and scratch buffers, are aligned to at least 64 bytes, including the AVX-512 implementations.
+
+The plots below predate the keystream-XOR benchmark paths and need fresh measurements before comparing encryption-only performance.
 
 ### Running Benchmarks
 

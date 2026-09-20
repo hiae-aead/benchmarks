@@ -11,7 +11,7 @@
 #define COMPUTATION_TIME 3.0
 #define NUM_MEASUREMENTS 5
 
-// Page-aligned, so that the results don't depend on where malloc() happens to put the buffers. Some placements are up to 25% slower.
+// Page alignment keeps buffer placement consistent between runs.
 #define BUFFER_ALIGNMENT 4096
 
 const int len_test_case = 11;
@@ -49,9 +49,9 @@ speed_test_encode_work(size_t len, int aead_mode)
 {
     perf_result_t result = { 0 };
 
-    uint8_t key[CRYPTO_KEYBYTES];
+    CRYPTO_ALIGN(64) uint8_t key[CRYPTO_KEYBYTES];
     memset(key, 1, CRYPTO_KEYBYTES);
-    uint8_t nonce[CRYPTO_NPUBBYTES];
+    CRYPTO_ALIGN(64) uint8_t nonce[CRYPTO_NPUBBYTES];
     memset(nonce, 1, CRYPTO_NPUBBYTES);
 
     size_t   ad_len = aead_mode ? 48 : 0;
@@ -82,7 +82,12 @@ speed_test_encode_work(size_t len, int aead_mode)
 
     do {
         unsigned long long clen;
-        crypto_aead_encrypt(ct, &clen, msg, len, ad, ad_len, NULL, nonce, key);
+        if (aead_mode) {
+            crypto_aead_encrypt(ct, &clen, msg, len, ad, ad_len, NULL, nonce, key);
+        } else {
+            crypto_stream_xor(ct, msg, len, nonce, key);
+            clen = len;
+        }
         warmup_iterations++;
         hiae_timer_stop(&warmup_timer);
     } while (hiae_timer_elapsed_seconds(&warmup_timer) < WARMUP_TIME);
@@ -104,7 +109,12 @@ speed_test_encode_work(size_t len, int aead_mode)
 
         for (size_t iter = 0; iter < iterations_per_measurement; iter++) {
             unsigned long long clen;
-            crypto_aead_encrypt(ct, &clen, msg, len, ad, ad_len, NULL, nonce, key);
+            if (aead_mode) {
+                crypto_aead_encrypt(ct, &clen, msg, len, ad, ad_len, NULL, nonce, key);
+            } else {
+                crypto_stream_xor(ct, msg, len, nonce, key);
+                clen = len;
+            }
         }
 
         hiae_timer_stop(&timer);
@@ -137,9 +147,9 @@ speed_test_decode_work(size_t len, int aead_mode)
 {
     perf_result_t result = { 0 };
 
-    uint8_t key[CRYPTO_KEYBYTES];
+    CRYPTO_ALIGN(64) uint8_t key[CRYPTO_KEYBYTES];
     memset(key, 1, CRYPTO_KEYBYTES);
-    uint8_t nonce[CRYPTO_NPUBBYTES];
+    CRYPTO_ALIGN(64) uint8_t nonce[CRYPTO_NPUBBYTES];
     memset(nonce, 1, CRYPTO_NPUBBYTES);
 
     size_t   ad_len = aead_mode ? 48 : 0;
@@ -167,7 +177,12 @@ speed_test_decode_work(size_t len, int aead_mode)
     memset(msg, 0x1, len);
 
     unsigned long long clen;
-    crypto_aead_encrypt(ct, &clen, msg, len, ad, ad_len, NULL, nonce, key);
+    if (aead_mode) {
+        crypto_aead_encrypt(ct, &clen, msg, len, ad, ad_len, NULL, nonce, key);
+    } else {
+        crypto_stream_xor(ct, msg, len, nonce, key);
+        clen = len;
+    }
 
     hiae_timer_t warmup_timer;
     hiae_timer_start(&warmup_timer);
@@ -175,7 +190,11 @@ speed_test_decode_work(size_t len, int aead_mode)
 
     do {
         unsigned long long mlen;
-        crypto_aead_decrypt(dec, &mlen, NULL, ct, clen, ad, ad_len, nonce, key);
+        if (aead_mode) {
+            crypto_aead_decrypt(dec, &mlen, NULL, ct, clen, ad, ad_len, nonce, key);
+        } else {
+            crypto_stream_xor(dec, ct, len, nonce, key);
+        }
         warmup_iterations++;
         hiae_timer_stop(&warmup_timer);
     } while (hiae_timer_elapsed_seconds(&warmup_timer) < WARMUP_TIME);
@@ -198,7 +217,11 @@ speed_test_decode_work(size_t len, int aead_mode)
 
         for (size_t iter = 0; iter < iterations_per_measurement; iter++) {
             unsigned long long mlen;
-            crypto_aead_decrypt(dec, &mlen, NULL, ct, clen, ad, ad_len, nonce, key);
+            if (aead_mode) {
+                crypto_aead_decrypt(dec, &mlen, NULL, ct, clen, ad, ad_len, nonce, key);
+            } else {
+                crypto_stream_xor(dec, ct, len, nonce, key);
+            }
         }
 
         hiae_timer_stop(&timer);

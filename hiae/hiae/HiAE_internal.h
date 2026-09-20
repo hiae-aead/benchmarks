@@ -13,6 +13,7 @@ typedef struct {
     void (*absorb)(HiAE_state_t *state, const uint8_t *ad, size_t len);
     void (*finalize)(HiAE_state_t *state, uint64_t ad_len, uint64_t msg_len, uint8_t *tag);
     void (*enc)(HiAE_state_t *state, uint8_t *ci, const uint8_t *mi, size_t size);
+    void (*stream_xor)(HiAE_state_t *state, uint8_t *ci, const uint8_t *mi, size_t size);
     void (*dec)(HiAE_state_t *state, uint8_t *mi, const uint8_t *ci, size_t size);
     void (*enc_partial_noupdate)(HiAE_state_t *state, uint8_t *ci, const uint8_t *mi, size_t size);
     void (*dec_partial_noupdate)(HiAE_state_t *state, uint8_t *mi, const uint8_t *ci, size_t size);
@@ -59,9 +60,9 @@ typedef struct {
 #endif
 
 /* Internal constant arrays */
-static const uint8_t C0[BLOCK_SIZE] = { 0x32, 0x43, 0xf6, 0xa8, 0x88, 0x5a, 0x30, 0x8d,
+HIAE_ALIGN(64) static const uint8_t C0[BLOCK_SIZE] = { 0x32, 0x43, 0xf6, 0xa8, 0x88, 0x5a, 0x30, 0x8d,
                                         0x31, 0x31, 0x98, 0xa2, 0xe0, 0x37, 0x07, 0x34 };
-static const uint8_t C1[BLOCK_SIZE] = { 0x4a, 0x40, 0x93, 0x82, 0x22, 0x99, 0xf3, 0x1d,
+HIAE_ALIGN(64) static const uint8_t C1[BLOCK_SIZE] = { 0x4a, 0x40, 0x93, 0x82, 0x22, 0x99, 0xf3, 0x1d,
                                         0x00, 0x82, 0xef, 0xa9, 0x8e, 0xc4, 0xe6, 0xc8 };
 
 /* Internal helper functions */

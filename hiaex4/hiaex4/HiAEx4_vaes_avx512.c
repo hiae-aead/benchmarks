@@ -733,7 +733,7 @@ init_regs(STATE_PARAMS, const uint8_t *key, const uint8_t *nonce)
 
     // Makes every lane different: its index and the number of lanes minus one
     const uint8_t degree                = 4;
-    uint8_t       ctx_bytes[BLOCK_SIZE] = { 0 };
+    HIAE_ALIGN(64) uint8_t       ctx_bytes[BLOCK_SIZE] = { 0 };
     for (size_t i = 0; i < degree; i++) {
         ctx_bytes[i * 16 + 0] = (uint8_t) i;
         ctx_bytes[i * 16 + 1] = degree - 1;
@@ -785,7 +785,7 @@ absorb_regs(STATE_PARAMS, const uint8_t *ad, size_t len)
     {
         const size_t nfull = len / BLOCK_SIZE;
         const size_t pad   = len % BLOCK_SIZE;
-        uint8_t      pbuf[BLOCK_SIZE];
+        HIAE_ALIGN(64) uint8_t      pbuf[BLOCK_SIZE];
 
         if (pad != 0) {
             memset(pbuf, 0, sizeof pbuf);
@@ -823,7 +823,7 @@ enc_regs(STATE_PARAMS, uint8_t *ci, const uint8_t *mi, size_t size)
     {
         const size_t nfull = size / BLOCK_SIZE;
         const size_t pad   = size % BLOCK_SIZE;
-        uint8_t      pbuf[BLOCK_SIZE];
+        HIAE_ALIGN(64) uint8_t      pbuf[BLOCK_SIZE];
 
         if (pad != 0) {
             memset(pbuf, 0, sizeof pbuf);
@@ -867,8 +867,8 @@ dec_regs(STATE_PARAMS, uint8_t *mi, const uint8_t *ci, size_t size)
     {
         const size_t nfull = size / BLOCK_SIZE;
         const size_t pad   = size % BLOCK_SIZE;
-        uint8_t      pbuf[BLOCK_SIZE];
-        uint8_t      pmask[BLOCK_SIZE];
+        HIAE_ALIGN(64) uint8_t      pbuf[BLOCK_SIZE];
+        HIAE_ALIGN(64) uint8_t      pmask[BLOCK_SIZE];
 
         if (pad != 0) {
             memset(pbuf, 0, sizeof pbuf);
@@ -891,7 +891,7 @@ static HIAE_ALWAYS_INLINE void
 finalize_regs(STATE_PARAMS, uint64_t ad_len, uint64_t msg_len, uint8_t *tag)
 {
     STATE_IN;
-    uint64_t lens[2];
+    HIAE_ALIGN(64) uint64_t lens[2];
 
     lens[0]             = ad_len * 8;
     lens[1]             = msg_len * 8;
@@ -907,9 +907,9 @@ finalize_mac_regs(STATE_PARAMS, uint64_t data_len, uint8_t *tag)
 {
     STATE_IN;
     const uint8_t degree = 4;
-    uint64_t      lens[2];
-    uint8_t       tag_multi_bytes[BLOCK_SIZE];
-    uint8_t       v_block[BLOCK_SIZE];
+    HIAE_ALIGN(64) uint64_t      lens[2];
+    HIAE_ALIGN(64) uint8_t       tag_multi_bytes[BLOCK_SIZE];
+    HIAE_ALIGN(64) uint8_t       v_block[BLOCK_SIZE];
     DATA512b      v;
 
     lens[0]       = data_len * 8;
@@ -994,6 +994,62 @@ HiAEx4_enc_vaes_avx512(HiAEx4_state_t *state_opaque, uint8_t *ci, const uint8_t 
     STATE_STORE(state_opaque->opaque);
 }
 
+#    define STREAM_STEP(i, S0, S1, S3, S9, S13, Mi, Mi4, Mi10)                 \
+        {                                                                      \
+            const DATA512b t_ = AESENC(SIMD_XOR(S0, S1), SIMD_ZERO_512());     \
+            S0 = AESENC(S13, t_);                                              \
+            SIMD_STORE(ci + 64 * (i),                                          \
+                       SIMD_XOR3(t_, S9, SIMD_LOAD(mi + 64 * (i))));           \
+        }
+
+#    define STREAM_TAIL(i, S0, S1, S3, S9, S13, Mi, Mi4, Mi10)                 \
+        if ((i) == nfull) {                                                    \
+            r = (i);                                                           \
+            if (pad != 0) {                                                    \
+                const DATA512b t_ = AESENC(SIMD_XOR(S0, S1), SIMD_ZERO_512()); \
+                S0 = AESENC(S13, t_);                                          \
+                SIMD_STORE(pbuf, SIMD_XOR(t_, S9));                            \
+                r++;                                                           \
+            }                                                                  \
+            goto done;                                                         \
+        }                                                                      \
+        STREAM_STEP(i, S0, S1, S3, S9, S13, Mi, Mi4, Mi10)
+
+static void
+stream_xor(HiAEx4_state_t *state_opaque, uint8_t *ci, const uint8_t *mi, size_t size)
+{
+    STATE_DECL;
+    size_t r;
+
+    if (size == 0) {
+        return;
+    }
+    STATE_LOAD(state_opaque->opaque);
+    while (size >= UNROLL_BLOCK_SIZE) {
+        ROUNDS16(STREAM_STEP)
+        mi += UNROLL_BLOCK_SIZE;
+        ci += UNROLL_BLOCK_SIZE;
+        size -= UNROLL_BLOCK_SIZE;
+    }
+    {
+        const size_t nfull = size / BLOCK_SIZE;
+        const size_t pad = size % BLOCK_SIZE;
+        HIAE_ALIGN(64) uint8_t pbuf[BLOCK_SIZE];
+
+        ROUNDS16(STREAM_TAIL)
+        r = 16;
+    done:
+        STATE_ROTATE(r);
+        for (size_t j = 0; j < pad; j++) {
+            ci[nfull * BLOCK_SIZE + j] = mi[nfull * BLOCK_SIZE + j] ^ pbuf[j];
+        }
+    }
+    STATE_STORE(state_opaque->opaque);
+}
+
+#    undef STREAM_STEP
+#    undef STREAM_TAIL
+
 static void
 HiAEx4_dec_vaes_avx512(HiAEx4_state_t *state_opaque, uint8_t *mi, const uint8_t *ci, size_t size)
 {
@@ -1013,7 +1069,7 @@ HiAEx4_enc_partial_noupdate_vaes_avx512(HiAEx4_state_t *state_opaque,
                                         size_t          size)
 {
     const uint8_t *const st = state_opaque->opaque;
-    uint8_t              buf[BLOCK_SIZE];
+    HIAE_ALIGN(64) uint8_t              buf[BLOCK_SIZE];
 
     if (size == 0) {
         return;
@@ -1033,7 +1089,7 @@ HiAEx4_dec_partial_noupdate_vaes_avx512(HiAEx4_state_t *state_opaque,
                                         size_t          size)
 {
     const uint8_t *const st = state_opaque->opaque;
-    uint8_t              buf[BLOCK_SIZE];
+    HIAE_ALIGN(64) uint8_t              buf[BLOCK_SIZE];
 
     if (size == 0) {
         return;
@@ -1076,7 +1132,7 @@ HiAEx4_decrypt_vaes_avx512(const uint8_t *key,
                            const uint8_t *tag)
 {
     STATE_DECL;
-    uint8_t computed_tag[HIAEX4_MACBYTES];
+    HIAE_ALIGN(64) uint8_t computed_tag[HIAEX4_MACBYTES];
     init_regs(STATE_ARGS, key, nonce);
     absorb_regs(STATE_ARGS, ad, ad_len);
     dec_regs(STATE_ARGS, msg, ct, ct_len);
@@ -1103,6 +1159,7 @@ const HiAEx4_impl_t hiaex4_vaes_avx512_impl = { .name         = "VAES-AVX512",
                                                 .finalize     = HiAEx4_finalize_vaes_avx512,
                                                 .finalize_mac = HiAEx4_finalize_mac_vaes_avx512,
                                                 .enc          = HiAEx4_enc_vaes_avx512,
+                                                .stream_xor   = stream_xor,
                                                 .dec          = HiAEx4_dec_vaes_avx512,
                                                 .enc_partial_noupdate =
                                                     HiAEx4_enc_partial_noupdate_vaes_avx512,

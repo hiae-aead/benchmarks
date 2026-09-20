@@ -1,11 +1,15 @@
 #include <stdio.h>
-#include <stdint.h>
-#include "crypto_aead.h"
 
-int main(void) {
-    printf("AEGIS-128x2 ARM Crypto implementation compiled successfully!\n");
-    printf("Key bytes: %d\n", CRYPTO_KEYBYTES);
-    printf("Nonce bytes: %d\n", CRYPTO_NPUBBYTES);
-    printf("Auth bytes: %d\n", CRYPTO_ABYTES);
+#include "common.h"
+#include "crypto_aead.h"
+#include "../aegis-stream-test.h"
+
+int
+main(void)
+{
+    if (test_stream_xor() != 0) {
+        return 1;
+    }
+    puts("AEGIS-128X2 stream XOR and AEAD tests passed.");
     return 0;
 }

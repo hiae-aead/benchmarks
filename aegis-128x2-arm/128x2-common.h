@@ -3,12 +3,12 @@
 static void
 aegis128x2_init(const uint8_t *key, const uint8_t *nonce, aes_block_t *const state)
 {
-    static CRYPTO_ALIGN(AES_BLOCK_LENGTH) const uint8_t c0_[AES_BLOCK_LENGTH] = {
+    static CRYPTO_ALIGN(64) const uint8_t c0_[AES_BLOCK_LENGTH] = {
         0x00, 0x01, 0x01, 0x02, 0x03, 0x05, 0x08, 0x0d, 0x15, 0x22, 0x37,
         0x59, 0x90, 0xe9, 0x79, 0x62, 0x00, 0x01, 0x01, 0x02, 0x03, 0x05,
         0x08, 0x0d, 0x15, 0x22, 0x37, 0x59, 0x90, 0xe9, 0x79, 0x62,
     };
-    static CRYPTO_ALIGN(AES_BLOCK_LENGTH) const uint8_t c1_[AES_BLOCK_LENGTH] = {
+    static CRYPTO_ALIGN(64) const uint8_t c1_[AES_BLOCK_LENGTH] = {
         0xdb, 0x3d, 0x18, 0x55, 0x6d, 0xc2, 0x2f, 0xf1, 0x20, 0x11, 0x31,
         0x42, 0x73, 0xb5, 0x28, 0xdd, 0xdb, 0x3d, 0x18, 0x55, 0x6d, 0xc2,
         0x2f, 0xf1, 0x20, 0x11, 0x31, 0x42, 0x73, 0xb5, 0x28, 0xdd,
@@ -16,8 +16,8 @@ aegis128x2_init(const uint8_t *key, const uint8_t *nonce, aes_block_t *const sta
 
     const aes_block_t c0 = AES_BLOCK_LOAD(c0_);
     const aes_block_t c1 = AES_BLOCK_LOAD(c1_);
-    uint8_t           tmp[2 * 16];
-    uint8_t           context_bytes[AES_BLOCK_LENGTH];
+    CRYPTO_ALIGN(64) uint8_t     tmp[2 * 16];
+    CRYPTO_ALIGN(64) uint8_t     context_bytes[AES_BLOCK_LENGTH];
     aes_block_t       context;
     aes_block_t       k;
     aes_block_t       n;
@@ -56,8 +56,8 @@ aegis128x2_init(const uint8_t *key, const uint8_t *nonce, aes_block_t *const sta
 static void
 aegis128x2_mac(uint8_t *mac, size_t maclen, size_t adlen, size_t mlen, aes_block_t *const state)
 {
-    uint8_t     mac_multi_0[AES_BLOCK_LENGTH];
-    uint8_t     mac_multi_1[AES_BLOCK_LENGTH];
+    CRYPTO_ALIGN(64) uint8_t     mac_multi_0[AES_BLOCK_LENGTH];
+    CRYPTO_ALIGN(64) uint8_t     mac_multi_1[AES_BLOCK_LENGTH];
     aes_block_t tmp;
     int         i;
 
@@ -139,6 +139,34 @@ aegis128x2_enc(uint8_t *const dst, const uint8_t *const src, aes_block_t *const 
 }
 
 static void
+aegis128x2_xor_keystream(uint8_t *const dst, const uint8_t *const src, aes_block_t *const state)
+{
+    aes_block_t msg0, msg1;
+    aes_block_t tmp0, tmp1, last;
+
+    msg0 = AES_BLOCK_LOAD(src);
+    msg1 = AES_BLOCK_LOAD(src + AES_BLOCK_LENGTH);
+    tmp0 = AES_BLOCK_XOR(msg0, state[6]);
+    tmp0 = AES_BLOCK_XOR(tmp0, state[1]);
+    tmp1 = AES_BLOCK_XOR(msg1, state[5]);
+    tmp1 = AES_BLOCK_XOR(tmp1, state[2]);
+    tmp0 = AES_BLOCK_XOR(tmp0, AES_BLOCK_AND(state[2], state[3]));
+    tmp1 = AES_BLOCK_XOR(tmp1, AES_BLOCK_AND(state[6], state[7]));
+    AES_BLOCK_STORE(dst, tmp0);
+    AES_BLOCK_STORE(dst + AES_BLOCK_LENGTH, tmp1);
+
+    last     = state[7];
+    state[7] = AES_ENC(state[6], state[7]);
+    state[6] = AES_ENC(state[5], state[6]);
+    state[5] = AES_ENC(state[4], state[5]);
+    state[4] = AES_ENC(state[3], state[4]);
+    state[3] = AES_ENC(state[2], state[3]);
+    state[2] = AES_ENC(state[1], state[2]);
+    state[1] = AES_ENC(state[0], state[1]);
+    state[0] = AES_ENC(last, state[0]);
+}
+
+static void
 aegis128x2_dec(uint8_t *const dst, const uint8_t *const src, aes_block_t *const state)
 {
     aes_block_t msg0, msg1;
@@ -161,7 +189,7 @@ static void
 aegis128x2_declast(uint8_t *const dst, const uint8_t *const src, size_t len,
                    aes_block_t *const state)
 {
-    uint8_t     pad[RATE];
+    CRYPTO_ALIGN(64) uint8_t     pad[RATE];
     aes_block_t msg0, msg1;
 
     memset(pad, 0, sizeof pad);
@@ -191,9 +219,9 @@ static int
 encrypt_detached(uint8_t *c, uint8_t *mac, size_t maclen, const uint8_t *m, size_t mlen,
                  const uint8_t *ad, size_t adlen, const uint8_t *npub, const uint8_t *k)
 {
-    aes_block_t                state[8];
-    CRYPTO_ALIGN(RATE) uint8_t src[RATE];
-    CRYPTO_ALIGN(RATE) uint8_t dst[RATE];
+    CRYPTO_ALIGN(64) aes_block_t state[8];
+    CRYPTO_ALIGN(64) uint8_t     src[RATE];
+    CRYPTO_ALIGN(64) uint8_t     dst[RATE];
     size_t                     i;
 
     aegis128x2_init(k, npub, state);
@@ -228,10 +256,10 @@ static int
 decrypt_detached(uint8_t *m, const uint8_t *c, size_t clen, const uint8_t *mac, size_t maclen,
                  const uint8_t *ad, size_t adlen, const uint8_t *npub, const uint8_t *k)
 {
-    aes_block_t                state[8];
-    CRYPTO_ALIGN(RATE) uint8_t src[RATE];
-    CRYPTO_ALIGN(RATE) uint8_t dst[RATE];
-    CRYPTO_ALIGN(16) uint8_t   computed_mac[32];
+    CRYPTO_ALIGN(64) aes_block_t state[8];
+    CRYPTO_ALIGN(64) uint8_t     src[RATE];
+    CRYPTO_ALIGN(64) uint8_t     dst[RATE];
+    CRYPTO_ALIGN(64) uint8_t     computed_mac[32];
     const size_t               mlen = clen;
     size_t                     i;
     int                        ret;
@@ -278,6 +306,33 @@ decrypt_detached(uint8_t *m, const uint8_t *c, size_t clen, const uint8_t *mac, 
         memset(m, 0, mlen);
     }
     return ret;
+}
+
+int
+crypto_stream_xor(unsigned char *out, const unsigned char *in, unsigned long long len,
+                  const unsigned char *npub, const unsigned char *k)
+{
+    CRYPTO_ALIGN(64) aes_block_t state[8];
+    CRYPTO_ALIGN(64) uint8_t     src[RATE];
+    CRYPTO_ALIGN(64) uint8_t     dst[RATE];
+    size_t                      i, length;
+
+    if (len > SIZE_MAX) {
+        return -1;
+    }
+    length = (size_t) len;
+    aegis128x2_init(k, npub, state);
+
+    for (i = 0; length - i >= RATE; i += RATE) {
+        aegis128x2_xor_keystream(out + i, in + i, state);
+    }
+    if (length != i) {
+        memset(src, 0, RATE);
+        memcpy(src, in + i, length - i);
+        aegis128x2_xor_keystream(dst, src, state);
+        memcpy(out + i, dst, length - i);
+    }
+    return 0;
 }
 
 // Supercop API

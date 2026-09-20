@@ -51,6 +51,9 @@ $(TEST): $(TEST_OBJECTS) $(OBJECTS)
 %.o: %.c
 	$(CC) $(CFLAGS) -c -o $@ $<
 
+encrypt.o test.o benchmark.o: api.h crypto_aead.h
+benchmark.o: timing.h
+
 clean:
 	rm -f $(OBJECTS) $(BENCHMARK_OBJECTS) $(TEST_OBJECTS) $(BENCHMARK) $(TEST)
 

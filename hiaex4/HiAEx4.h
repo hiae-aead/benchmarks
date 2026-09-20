@@ -88,7 +88,7 @@ extern "C" {
  * directly by applications.
  *
  * @note The state is 1024 bytes to accommodate AVX512 implementations with 64 parallel states
- * @note States allocated on the heap should be 64-byte aligned, for example with aligned_alloc(). Other states still work, just more slowly.
+ * @note States allocated on the heap must be 64-byte aligned.
  * @note Each state instance is independent and thread-safe when used by one thread
  * @warning Never modify the contents directly or copy states between operations
  */
@@ -602,6 +602,14 @@ void HiAEx4_finalize_mac(HiAEx4_state_t *state, uint64_t data_len, uint8_t *tag)
  * @endcode
  */
 void HiAEx4_enc(HiAEx4_state_t *state, uint8_t *ci, const uint8_t *mi, size_t size);
+
+/**
+ * @brief XOR plaintext with the keystream obtained by encrypting zeros.
+ *
+ * This operation provides no authentication and supports in-place processing.
+ * Each call consumes whole blocks, including a zero-padded final partial block.
+ */
+void HiAEx4_stream_xor(HiAEx4_state_t *state, uint8_t *ci, const uint8_t *mi, size_t size);
 
 /**
  * @brief Decrypt data incrementally

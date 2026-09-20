@@ -387,11 +387,11 @@ static inline __M128I _MM_aesenc_si128(__M128I a, __M128I RoundKey) {
 #define TAG_LOOP  (16)
 
 #define VARS4UPDATE \
-  __m128i k[2], state[S_NUM], stateNew[S_NUM], M[M_NUM];
+  ROCCA_ALIGN __m128i k[2], state[S_NUM], stateNew[S_NUM], M[M_NUM];
 
 #define VARS4ENCRYPT \
   VARS4UPDATE \
-  __m128i Z[M_NUM], C[M_NUM];
+  ROCCA_ALIGN __m128i Z[M_NUM], C[M_NUM];
 
 #define COPY_TO_LOCAL(ctx) \
   for(size_t i = 0; i < S_NUM; ++i) { state[i] = load(&((ctx)->state[i][0])); }
@@ -465,7 +465,7 @@ static inline __M128I _MM_aesenc_si128(__M128I a, __M128I RoundKey) {
   UPDATE_STATE(M)
   
 #define ADD_AD_LAST_BLOCK(input, size) \
-  uint8_t tmpblk[ROCCA_MSG_BLOCK_SIZE] = {0}; \
+  ROCCA_ALIGN uint8_t tmpblk[ROCCA_MSG_BLOCK_SIZE] = {0}; \
   memcpy(tmpblk, input, size); \
   MSG_LOAD(tmpblk, M) \
   UPDATE_STATE(M)
@@ -478,7 +478,7 @@ static inline __M128I _MM_aesenc_si128(__M128I a, __M128I RoundKey) {
   UPDATE_STATE(M)
 
 #define ENCRYPT_LAST_BLOCK(output, input, size) \
-  uint8_t tmpblk[ROCCA_MSG_BLOCK_SIZE] = {0}; \
+  ROCCA_ALIGN uint8_t tmpblk[ROCCA_MSG_BLOCK_SIZE] = {0}; \
   memcpy(tmpblk, input, size); \
   MSG_LOAD(tmpblk, M) \
   MAKE_STRM \
@@ -495,9 +495,9 @@ static inline __M128I _MM_aesenc_si128(__M128I a, __M128I RoundKey) {
   UPDATE_STATE(M)
 
 #define DECRYPT_LAST_BLOCK(output, input, size) \
-  uint8_t tmpblk[ROCCA_MSG_BLOCK_SIZE] = {0}; \
-  uint8_t tmpmsk[ROCCA_MSG_BLOCK_SIZE] = {0}; \
-  __m128i mask[M_NUM]; \
+  ROCCA_ALIGN uint8_t tmpblk[ROCCA_MSG_BLOCK_SIZE] = {0}; \
+  ROCCA_ALIGN uint8_t tmpmsk[ROCCA_MSG_BLOCK_SIZE] = {0}; \
+  ROCCA_ALIGN __m128i mask[M_NUM]; \
   memcpy(tmpblk, input, size); \
   memset(tmpmsk, 0xFF , size); \
   MSG_LOAD(tmpblk, C   ) \
@@ -509,8 +509,8 @@ static inline __M128I _MM_aesenc_si128(__M128I a, __M128I RoundKey) {
   UPDATE_STATE(M)
 
 #define SET_AD_BITLEN_MSG_BITLEN(sizeAD, sizeM) \
-  uint8_t bitlenAD[16]; \
-  uint8_t bitlenM [16]; \
+  ROCCA_ALIGN uint8_t bitlenAD[16]; \
+  ROCCA_ALIGN uint8_t bitlenM [16]; \
   ENCODE_IN_LITTLE_ENDIAN(bitlenAD, sizeAD); \
   ENCODE_IN_LITTLE_ENDIAN(bitlenM , sizeM ); \
   M[0] = load(bitlenAD); \
@@ -532,8 +532,8 @@ static inline __M128I _MM_aesenc_si128(__M128I a, __M128I RoundKey) {
   store((tag)   , tag128a); \
   store((tag)+16, tag128b);
 
-static const uint8_t Z0[] = {0xcd,0x65,0xef,0x23,0x91,0x44,0x37,0x71,0x22,0xae,0x28,0xd7,0x98,0x2f,0x8a,0x42};
-static const uint8_t Z1[] = {0xbc,0xdb,0x89,0x81,0xa5,0xdb,0xb5,0xe9,0x2f,0x3b,0x4d,0xec,0xcf,0xfb,0xc0,0xb5};
+ROCCA_ALIGN static const uint8_t Z0[] = {0xcd,0x65,0xef,0x23,0x91,0x44,0x37,0x71,0x22,0xae,0x28,0xd7,0x98,0x2f,0x8a,0x42};
+ROCCA_ALIGN static const uint8_t Z1[] = {0xbc,0xdb,0x89,0x81,0xa5,0xdb,0xb5,0xe9,0x2f,0x3b,0x4d,0xec,0xcf,0xfb,0xc0,0xb5};
 
 void rocca_init(rocca_context * ctx, const uint8_t * key, const uint8_t * iv) {
 	VARS4UPDATE
@@ -580,6 +580,32 @@ void rocca_decrypt(rocca_context * ctx, uint8_t * out, const uint8_t * in, size_
 	}
 	if(i < size) {
 		DECRYPT_LAST_BLOCK(out + i, in + i, size - i);
+	}
+	COPY_FROM_LOCAL(ctx);
+	ctx->size_m += size;
+}
+
+void rocca_stream_xor(rocca_context * ctx, uint8_t * out, const uint8_t * in, size_t size) {
+	ROCCA_ALIGN __m128i state[S_NUM], stateNew[S_NUM], M[M_NUM], Z[M_NUM], C[M_NUM];
+	COPY_TO_LOCAL(ctx);
+	M[0] = setzero();
+	M[1] = setzero();
+	size_t i = 0;
+	for(size_t size2 = FLOORTO(size, ROCCA_MSG_BLOCK_SIZE); i < size2; i += ROCCA_MSG_BLOCK_SIZE) {
+		MAKE_STRM
+		MSG_LOAD(in + i, C)
+		XOR_BLOCK(C, C, Z)
+		MSG_STORE(out + i, C)
+		UPDATE_STATE(M)
+	}
+	if(i < size) {
+		ROCCA_ALIGN uint8_t stream[ROCCA_MSG_BLOCK_SIZE];
+		MAKE_STRM
+		MSG_STORE(stream, Z)
+		UPDATE_STATE(M)
+		for(size_t j = 0; i < size; ++i, ++j) {
+			out[i] = in[i] ^ stream[j];
+		}
 	}
 	COPY_FROM_LOCAL(ctx);
 	ctx->size_m += size;

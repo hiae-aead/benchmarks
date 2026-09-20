@@ -91,7 +91,7 @@ HiAEx4_stream_encrypt(HiAEx4_stream_state_t *stream, uint8_t *ct, const uint8_t 
             memcpy(ct, stream->buffer + stream->offset, to_copy);
             stream->offset = 0;
         } else {
-            uint8_t temp_out[BLOCK_SIZE];
+            HIAE_ALIGN(64) uint8_t temp_out[BLOCK_SIZE];
             HiAEx4_enc_partial_noupdate(&stream->state, temp_out, stream->buffer, new_offset);
             memcpy(ct, temp_out + stream->offset, to_copy);
             stream->offset = new_offset;
@@ -112,7 +112,7 @@ HiAEx4_stream_encrypt(HiAEx4_stream_state_t *stream, uint8_t *ct, const uint8_t 
         size_t remaining = len - pos;
         memcpy(stream->buffer, pt + pos, remaining);
 
-        uint8_t temp_out[BLOCK_SIZE];
+        HIAE_ALIGN(64) uint8_t temp_out[BLOCK_SIZE];
         HiAEx4_enc_partial_noupdate(&stream->state, temp_out, stream->buffer, remaining);
         memcpy(ct + ct_pos, temp_out, remaining);
 
@@ -154,7 +154,7 @@ HiAEx4_stream_decrypt(HiAEx4_stream_state_t *stream, uint8_t *pt, const uint8_t 
             memcpy(pt, stream->buffer + stream->offset, to_copy);
             stream->offset = 0;
         } else {
-            uint8_t temp_out[BLOCK_SIZE];
+            HIAE_ALIGN(64) uint8_t temp_out[BLOCK_SIZE];
             HiAEx4_dec_partial_noupdate(&stream->state, temp_out, stream->buffer, new_offset);
             memcpy(pt, temp_out + stream->offset, to_copy);
             stream->offset = new_offset;
@@ -175,7 +175,7 @@ HiAEx4_stream_decrypt(HiAEx4_stream_state_t *stream, uint8_t *pt, const uint8_t 
         size_t remaining = len - pos;
         memcpy(stream->buffer, ct + pos, remaining);
 
-        uint8_t temp_out[BLOCK_SIZE];
+        HIAE_ALIGN(64) uint8_t temp_out[BLOCK_SIZE];
         HiAEx4_dec_partial_noupdate(&stream->state, temp_out, stream->buffer, remaining);
         memcpy(pt + pt_pos, temp_out, remaining);
 
@@ -192,7 +192,7 @@ HiAEx4_stream_finalize(HiAEx4_stream_state_t *stream, uint8_t *tag)
         HiAEx4_absorb(&stream->state, stream->buffer, stream->offset);
         stream->offset = 0;
     } else if (stream->phase == HiAEx4_STREAM_MSG && stream->offset > 0) {
-        uint8_t dummy[BLOCK_SIZE];
+        HIAE_ALIGN(64) uint8_t dummy[BLOCK_SIZE];
         if (stream->mode == HiAEx4_STREAM_MODE_DECRYPT) {
             HiAEx4_dec(&stream->state, dummy, stream->buffer, stream->offset);
         } else {
@@ -215,12 +215,12 @@ HiAEx4_stream_verify(HiAEx4_stream_state_t *stream, const uint8_t *expected_tag)
         HiAEx4_absorb(&stream->state, stream->buffer, stream->offset);
         stream->offset = 0;
     } else if (stream->phase == HiAEx4_STREAM_MSG && stream->offset > 0) {
-        uint8_t dummy[BLOCK_SIZE];
+        HIAE_ALIGN(64) uint8_t dummy[BLOCK_SIZE];
         HiAEx4_dec(&stream->state, dummy, stream->buffer, stream->offset);
         stream->offset = 0;
     }
 
-    uint8_t computed_tag[HIAEX4_MACBYTES];
+    HIAE_ALIGN(64) uint8_t computed_tag[HIAEX4_MACBYTES];
     HiAEx4_finalize(&stream->state, stream->ad_len, stream->msg_len, computed_tag);
     stream->phase = HiAEx4_STREAM_FINAL;
 

@@ -4,6 +4,18 @@
 #include <stddef.h>
 #include <openssl/evp.h>
 
+#ifndef CRYPTO_ALIGN
+#    if defined(_MSC_VER)
+#        define CRYPTO_ALIGN(x) __declspec(align(x))
+#    else
+#        define CRYPTO_ALIGN(x) __attribute__((aligned(x)))
+#    endif
+#endif
+
+/* Encrypt or decrypt by XORing with the AES-CTR keystream, without authentication. */
+int crypto_stream_xor(unsigned char *out, const unsigned char *in, unsigned long long len,
+                      const unsigned char *npub, const unsigned char *k);
+
 int crypto_aead_encrypt(
     unsigned char *c, unsigned long long *clen,
     const unsigned char *m, unsigned long long mlen,

@@ -56,5 +56,7 @@ endif
 .PHONY: all clean
 
 # Dependencies
-encrypt.o: encrypt.c api.h common.h 128x2-common.h
+encrypt.o: encrypt.c api.h common.h crypto_aead.h 128x2-common.h
 benchmark.o: benchmark.c crypto_aead.h timing.h
+
+test.o: test.c common.h crypto_aead.h api.h ../aegis-stream-test.h

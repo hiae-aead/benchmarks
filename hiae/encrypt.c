@@ -72,3 +72,16 @@ int crypto_aead_decrypt(unsigned char *m, unsigned long long *mlen,
     
     return ret;
 }
+
+int crypto_stream_xor(unsigned char *out, const unsigned char *in, unsigned long long len,
+                      const unsigned char *npub, const unsigned char *k)
+{
+    HiAE_state_t state;
+
+    if (!npub || !k || len > SIZE_MAX || (len != 0 && (!out || !in))) {
+        return -1;
+    }
+    HiAE_init(&state, k, npub);
+    HiAE_stream_xor(&state, out, in, (size_t) len);
+    return 0;
+}

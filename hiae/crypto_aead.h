@@ -17,4 +17,7 @@ int crypto_aead_decrypt(unsigned char *m, unsigned long long *mlen,
                        const unsigned char *npub,
                        const unsigned char *k);
 
+int crypto_stream_xor(unsigned char *out, const unsigned char *in, unsigned long long len,
+                      const unsigned char *npub, const unsigned char *k);
+
 #endif

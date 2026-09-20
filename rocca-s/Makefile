@@ -20,13 +20,21 @@ LDFLAGS += -lm
 
 TARGET = rocca-s_benchmark
 SOURCES = performance_test.c rocca-s.c
+TEST_TARGET = rocca-s_test
+TEST_SOURCES = test.c rocca-s.c
 
-.PHONY: all clean
+.PHONY: all test clean
 
-all: $(TARGET)
+all: $(TEST_TARGET) $(TARGET)
 
-$(TARGET): $(SOURCES)
-	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+$(TARGET): $(SOURCES) rocca-s.h timing.h
+	$(CC) $(CFLAGS) -o $@ $(SOURCES) $(LDFLAGS)
+
+$(TEST_TARGET): $(TEST_SOURCES) rocca-s.h
+	$(CC) $(CFLAGS) -o $@ $(TEST_SOURCES) $(LDFLAGS)
+
+test: $(TEST_TARGET)
+	./$(TEST_TARGET)
 
 clean:
-	rm -f $(TARGET)
+	rm -f $(TEST_TARGET) $(TARGET)

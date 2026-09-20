@@ -471,6 +471,13 @@ HiAEx4_enc(HiAEx4_state_t *state, uint8_t *ci, const uint8_t *mi, size_t size)
 }
 
 void
+HiAEx4_stream_xor(HiAEx4_state_t *state, uint8_t *ci, const uint8_t *mi, size_t size)
+{
+    hiaex4_init_dispatch();
+    hiaex4_impl->stream_xor(state, ci, mi, size);
+}
+
+void
 HiAEx4_dec(HiAEx4_state_t *state, uint8_t *mi, const uint8_t *ci, size_t size)
 {
     hiaex4_init_dispatch();
