@@ -27,8 +27,8 @@ typedef __m256i DATA256b;
 #    define SIMD_XOR(x, y)      _mm256_xor_si256(x, y)
 #    define SIMD_AND(x, y)      _mm256_and_si256(x, y)
 #    define SIMD_ZERO_256()     _mm256_setzero_si256()
-#    define SIMD_FOLD(x, y)     _mm_xor_si128(_mm256_castsi256_si128(x), _mm256_extractf128_si256(x, 1))
-#    define AESENC(x, y)        _mm256_aesenc_epi128(x, y)
+#    define SIMD_FOLD(x, y) _mm_xor_si128(_mm256_castsi256_si128(x), _mm256_extractf128_si256(x, 1))
+#    define AESENC(x, y)    _mm256_aesenc_epi128(x, y)
 
 static inline void
 update_state_offset(DATA256b *state, DATA256b *tmp, DATA256b M, int offset)
@@ -179,7 +179,8 @@ encrypt_chunk(DATA256b *state, DATA256b *M, DATA256b *C, const uint8_t *mi, uint
     PREFETCH_WRITE(ci + i + PREFETCH_DISTANCE, 0);
 
     // Process blocks in groups of 4 to reduce register pressure
-    // This prevents GCC from trying to keep all 16 M[] and C[] values in registers
+    // This prevents GCC from trying to keep all 16 M[] and C[] values in
+    // registers
 
     // Group 1: blocks 0-3
     LOAD_1BLOCK_offset_enc(M[0], 0);
@@ -239,13 +240,8 @@ encrypt_chunk(DATA256b *state, DATA256b *M, DATA256b *C, const uint8_t *mi, uint
 }
 
 static inline void
-decrypt_chunk(DATA256b      *state,
-              DATA256b      *tmp,
-              DATA256b      *M,
-              DATA256b      *C,
-              const uint8_t *ci,
-              uint8_t       *mi,
-              size_t         i)
+decrypt_chunk(DATA256b *state, DATA256b *tmp, DATA256b *M, DATA256b *C, const uint8_t *ci,
+              uint8_t *mi, size_t i)
 {
     PREFETCH_READ(ci + i + PREFETCH_DISTANCE, 0);
     PREFETCH_WRITE(mi + i + PREFETCH_DISTANCE, 0);
@@ -337,8 +333,8 @@ HiAEx2_init_aesni(HiAEx2_state_t *state_opaque, const uint8_t *key, const uint8_
     state[15]   = SIMD_XOR(c0, c1);
 
     // Context separation
-    const uint8_t degree                = 2;
-    HIAE_ALIGN(64) uint8_t       ctx_bytes[BLOCK_SIZE] = { 0 };
+    const uint8_t          degree                = 2;
+    HIAE_ALIGN(64) uint8_t ctx_bytes[BLOCK_SIZE] = { 0 };
     for (size_t i = 0; i < degree; i++) {
         ctx_bytes[i * 16 + 0] = (uint8_t) i;
         ctx_bytes[i * 16 + 1] = degree - 1;
@@ -360,9 +356,9 @@ HiAEx2_absorb_aesni(HiAEx2_state_t *state_opaque, const uint8_t *ad, size_t len)
 {
     HIAE_ALIGN(64) DATA256b state[STATE];
     memcpy(state, state_opaque->opaque, sizeof(state));
-    size_t   i      = 0;
-    size_t   rest   = len % UNROLL_BLOCK_SIZE;
-    size_t   prefix = len - rest;
+    size_t                  i      = 0;
+    size_t                  rest   = len % UNROLL_BLOCK_SIZE;
+    size_t                  prefix = len - rest;
     HIAE_ALIGN(64) DATA256b tmp[STATE], M[16];
     if (len == 0)
         return;
@@ -409,7 +405,8 @@ HiAEx2_finalize_aesni(HiAEx2_state_t *state_opaque, uint64_t ad_len, uint64_t ms
     memcpy(state_opaque->opaque, state, sizeof(state));
 }
 
-/* Enhanced MAC finalization with proper domain separation for multi-parallel implementations */
+/* Enhanced MAC finalization with proper domain separation for multi-parallel
+ * implementations */
 static void
 HiAEx2_finalize_mac_aesni(HiAEx2_state_t *state_opaque, uint64_t data_len, uint8_t *tag)
 {
@@ -432,8 +429,8 @@ HiAEx2_finalize_mac_aesni(HiAEx2_state_t *state_opaque, uint64_t data_len, uint8
     }
 
     /* Step 3: Absorb MACs from each lane (degree = 2) */
-    const uint8_t degree = 2;
-    HIAE_ALIGN(64) uint8_t       tag_multi_bytes[32];
+    const uint8_t          degree = 2;
+    HIAE_ALIGN(64) uint8_t tag_multi_bytes[32];
     SIMD_STORE(tag_multi_bytes, tag_multi);
 
     /* For each lane d from 1 to degree-1, absorb the MAC from that lane */
@@ -455,7 +452,8 @@ HiAEx2_finalize_mac_aesni(HiAEx2_state_t *state_opaque, uint64_t data_len, uint8
     init_update(state, tmp, degree_temp, degree_temp);
     init_update(state, tmp, degree_temp, degree_temp);
 
-    /* Step 5: Final MAC extraction (XOR all states and extract first tag_length bytes) */
+    /* Step 5: Final MAC extraction (XOR all states and extract first tag_length
+     * bytes) */
     tag_multi = state[0];
     for (size_t i = 1; i < STATE; ++i) {
         tag_multi = SIMD_XOR(tag_multi, state[i]);
@@ -554,10 +552,8 @@ HiAEx2_dec_aesni(HiAEx2_state_t *state_opaque, uint8_t *mi, const uint8_t *ci, s
 }
 
 static void
-HiAEx2_enc_partial_noupdate_aesni(HiAEx2_state_t *state_opaque,
-                                  uint8_t        *ci,
-                                  const uint8_t  *mi,
-                                  size_t          size)
+HiAEx2_enc_partial_noupdate_aesni(HiAEx2_state_t *state_opaque, uint8_t *ci, const uint8_t *mi,
+                                  size_t size)
 {
     if (size == 0)
         return;
@@ -577,10 +573,8 @@ HiAEx2_enc_partial_noupdate_aesni(HiAEx2_state_t *state_opaque,
 }
 
 static void
-HiAEx2_dec_partial_noupdate_aesni(HiAEx2_state_t *state_opaque,
-                                  uint8_t        *mi,
-                                  const uint8_t  *ci,
-                                  size_t          size)
+HiAEx2_dec_partial_noupdate_aesni(HiAEx2_state_t *state_opaque, uint8_t *mi, const uint8_t *ci,
+                                  size_t size)
 {
     if (size == 0)
         return;
@@ -604,14 +598,8 @@ HiAEx2_dec_partial_noupdate_aesni(HiAEx2_state_t *state_opaque,
 }
 
 static int
-HiAEx2_encrypt_aesni(const uint8_t *key,
-                     const uint8_t *nonce,
-                     const uint8_t *msg,
-                     uint8_t       *ct,
-                     size_t         msg_len,
-                     const uint8_t *ad,
-                     size_t         ad_len,
-                     uint8_t       *tag)
+HiAEx2_encrypt_aesni(const uint8_t *key, const uint8_t *nonce, const uint8_t *msg, uint8_t *ct,
+                     size_t msg_len, const uint8_t *ad, size_t ad_len, uint8_t *tag)
 {
     HiAEx2_state_t state;
     HiAEx2_init_aesni(&state, key, nonce);
@@ -623,17 +611,11 @@ HiAEx2_encrypt_aesni(const uint8_t *key,
 }
 
 static int
-HiAEx2_decrypt_aesni(const uint8_t *key,
-                     const uint8_t *nonce,
-                     uint8_t       *msg,
-                     const uint8_t *ct,
-                     size_t         ct_len,
-                     const uint8_t *ad,
-                     size_t         ad_len,
-                     const uint8_t *tag)
+HiAEx2_decrypt_aesni(const uint8_t *key, const uint8_t *nonce, uint8_t *msg, const uint8_t *ct,
+                     size_t ct_len, const uint8_t *ad, size_t ad_len, const uint8_t *tag)
 {
-    HiAEx2_state_t state;
-    HIAE_ALIGN(64) uint8_t        computed_tag[HIAEX2_MACBYTES];
+    HiAEx2_state_t         state;
+    HIAE_ALIGN(64) uint8_t computed_tag[HIAEX2_MACBYTES];
     HiAEx2_init_aesni(&state, key, nonce);
     HiAEx2_absorb_aesni(&state, ad, ad_len);
     HiAEx2_dec_aesni(&state, msg, ct, ct_len);
@@ -643,8 +625,8 @@ HiAEx2_decrypt_aesni(const uint8_t *key,
 }
 
 static int
-HiAEx2_mac_aesni(
-    const uint8_t *key, const uint8_t *nonce, const uint8_t *data, size_t data_len, uint8_t *tag)
+HiAEx2_mac_aesni(const uint8_t *key, const uint8_t *nonce, const uint8_t *data, size_t data_len,
+                 uint8_t *tag)
 {
     HiAEx2_state_t state;
     HiAEx2_init_aesni(&state, key, nonce);

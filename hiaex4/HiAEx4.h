@@ -3,12 +3,13 @@
 
 /**
  * @file HiAEx4.h
- * @brief HiAEx4 (High-Throughput Authenticated Encryption) - Ultra high-performance AEAD cipher for
- * AVX512
+ * @brief HiAEx4 (High-Throughput Authenticated Encryption) - Ultra
+ * high-performance AEAD cipher for AVX512
  *
- * HiAEx4 is a cross-platform cryptographic library implementing an AES-based AEAD
- * (Authenticated Encryption with Associated Data) cipher optimized for AVX512 512-bit registers.
- * It automatically selects the optimal implementation:
+ * HiAEx4 is a cross-platform cryptographic library implementing an AES-based
+ * AEAD (Authenticated Encryption with Associated Data) cipher optimized for
+ * AVX512 512-bit registers. It automatically selects the optimal
+ * implementation:
  * - VAES+AVX512 for latest x86 processors with full 512-bit register support
  * - VAES+AVX256 fallback for processors with limited AVX512 support
  * - AES-NI fallback for processors without VAES
@@ -52,7 +53,8 @@ extern "C" {
 /** @brief Key size in bytes (256 bits)
  *
  * HiAEx4 uses 256-bit (32-byte) keys for all operations.
- * Keys should be generated using a cryptographically secure random number generator.
+ * Keys should be generated using a cryptographically secure random number
+ * generator.
  */
 #define HIAEX4_KEYBYTES 32
 
@@ -83,13 +85,15 @@ extern "C" {
 /**
  * @brief Opaque state structure for low-level streaming operations
  *
- * This structure maintains the internal state for incremental encryption/decryption
- * operations. The contents are implementation-specific and should not be accessed
- * directly by applications.
+ * This structure maintains the internal state for incremental
+ * encryption/decryption operations. The contents are implementation-specific
+ * and should not be accessed directly by applications.
  *
- * @note The state is 1024 bytes to accommodate AVX512 implementations with 64 parallel states
+ * @note The state is 1024 bytes to accommodate AVX512 implementations with 64
+ * parallel states
  * @note States allocated on the heap must be 64-byte aligned.
- * @note Each state instance is independent and thread-safe when used by one thread
+ * @note Each state instance is independent and thread-safe when used by one
+ * thread
  * @warning Never modify the contents directly or copy states between operations
  */
 typedef struct {
@@ -114,13 +118,15 @@ typedef struct {
  * protects both the ciphertext and optional associated data.
  *
  * @param key       Encryption key (must be HIAEX4_KEYBYTES bytes)
- * @param nonce     Unique nonce/IV for this message (must be HIAEX4_NONCEBYTES bytes)
+ * @param nonce     Unique nonce/IV for this message (must be HIAEX4_NONCEBYTES
+ * bytes)
  * @param msg       Plaintext message to encrypt
  * @param ct        Output buffer for ciphertext (same size as msg)
  * @param msg_len   Length of the message in bytes
  * @param ad        Optional associated data to authenticate (can be NULL)
  * @param ad_len    Length of associated data (0 if ad is NULL)
- * @param tag       Output buffer for authentication tag (must be HIAEX4_MACBYTES bytes)
+ * @param tag       Output buffer for authentication tag (must be
+ * HIAEX4_MACBYTES bytes)
  *
  * @return 0 on success, non-zero on error
  *
@@ -246,15 +252,16 @@ int HiAEx4_init_library(void);
  * Returns a string describing which implementation was selected based
  * on CPU feature detection.
  *
- * @return Implementation name (e.g., "VAES+AVX512", "VAES+AVX256", "AES-NI", "ARM-Crypto",
- * "Software")
+ * @return Implementation name (e.g., "VAES+AVX512", "VAES+AVX256", "AES-NI",
+ * "ARM-Crypto", "Software")
  *
  * @note The returned string is static and should not be freed
  * @note Useful for debugging and performance analysis
  *
  * Example:
  * @code
- * printf("Using HiAEx4 implementation: %s\n", HiAEx4_get_implementation_name());
+ * printf("Using HiAEx4 implementation: %s\n",
+ * HiAEx4_get_implementation_name());
  * @endcode
  */
 const char *HiAEx4_get_implementation_name(void);
@@ -266,10 +273,11 @@ const char *HiAEx4_get_implementation_name(void);
  * detecting the best one. Useful for testing, debugging, or when specific
  * behavior is required.
  *
- * @param impl_name Implementation name to force ("Software", "AES-NI", "VAES+AVX512",
- * "VAES+AVX256", "ARM NEON", "ARM SHA3")
+ * @param impl_name Implementation name to force ("Software", "AES-NI",
+ * "VAES+AVX512", "VAES+AVX256", "ARM NEON", "ARM SHA3")
  *
- * @return 0 on success, -1 if implementation is not available or name is invalid
+ * @return 0 on success, -1 if implementation is not available or name is
+ * invalid
  *
  * @note Must be called before any other HiAEx4 operations
  * @note Pass NULL to restore automatic detection
@@ -357,10 +365,11 @@ typedef enum {
  */
 typedef struct {
     HiAEx4_state_t state; /**< Internal cryptographic state */
-    uint8_t        buffer[64]; /**< Internal buffer for partial blocks (64-byte for AVX512) */
-    size_t         offset; /**< Current offset in buffer */
-    size_t         ad_len; /**< Total associated data processed */
-    size_t         msg_len; /**< Total message data processed */
+    uint8_t        buffer[64]; /**< Internal buffer for partial blocks (64-byte for
+                           AVX512) */
+    size_t                offset; /**< Current offset in buffer */
+    size_t                ad_len; /**< Total associated data processed */
+    size_t                msg_len; /**< Total message data processed */
     HiAEx4_stream_phase_t phase; /**< Current processing phase */
     HiAEx4_stream_mode_t  mode; /**< Encryption or decryption mode */
 } HiAEx4_stream_state_t;

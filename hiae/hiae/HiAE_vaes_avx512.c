@@ -1,7 +1,8 @@
 #include "HiAE.h"
 #include "HiAE_internal.h"
 
-/* clang-cl can build this implementation; MSVC proper cannot (no target pragmas) */
+/* clang-cl can build this implementation; MSVC proper cannot (no target
+ * pragmas) */
 #if (defined(__i386__) || defined(_M_IX86) || defined(__x86_64__) || defined(_M_AMD64)) && \
     (!defined(_MSC_VER) || defined(__clang__))
 
@@ -165,9 +166,9 @@ HiAE_absorb_vaes(HiAE_state_t *state_opaque, const uint8_t *ad, size_t len)
 {
     HIAE_ALIGN(64) DATA128b state[STATE];
     memcpy(state, state_opaque->opaque, sizeof(state));
-    size_t   i      = 0;
-    size_t   rest   = len % UNROLL_BLOCK_SIZE;
-    size_t   prefix = len - rest;
+    size_t                  i      = 0;
+    size_t                  rest   = len % UNROLL_BLOCK_SIZE;
+    size_t                  prefix = len - rest;
     HIAE_ALIGN(64) DATA128b tmp[STATE], M[16];
     if (len == 0)
         return;
@@ -435,8 +436,10 @@ HiAE_enc_vaes(HiAE_state_t *state_opaque, uint8_t *ci, const uint8_t *mi, size_t
         "jge 2f;" // If i >= prefix, jump to loop end
 
         // Prefetch next iteration data (512 bytes ahead)
-        "prefetcht0 512(%1, %%rax);" // Prefetch next chunk for reading (plaintext)
-        "prefetcht0 512(%0, %%rax);" // Prefetch next chunk for writing (ciphertext)
+        "prefetcht0 512(%1, %%rax);" // Prefetch next chunk for reading
+                                     // (plaintext)
+        "prefetcht0 512(%0, %%rax);" // Prefetch next chunk for writing
+                                     // (ciphertext)
         "prefetcht0 576(%1, %%rax);" // Prefetch more data (cache line boundary)
 
         // round 1
@@ -547,7 +550,8 @@ HiAE_enc_vaes(HiAE_state_t *state_opaque, uint8_t *ci, const uint8_t *mi, size_t
         "vpxorq %%xmm26, %%xmm3, %%xmm26;" // C[10] = SIMD_XOR(C[10], S[3])
         "vpxorq %%xmm13, %%xmm18, %%xmm13;" // S[13] = SIMD_XOR(S[13], M[10])
         "vpxorq %%xmm7, %%xmm18, %%xmm7;" // S[7] = SIMD_XOR(S[7], M[10])
-        "vmovdqa64 %%xmm26, 160(%0, %%rax);" // Write back C[10] to ci[i+160:i+176]
+        "vmovdqa64 %%xmm26, 160(%0, %%rax);" // Write back C[10] to
+                                             // ci[i+160:i+176]
 
         // round 12
         "vmovdqa64 176(%1, %%rax), %%xmm19;" // Load M[11] into xmm19
@@ -557,7 +561,8 @@ HiAE_enc_vaes(HiAE_state_t *state_opaque, uint8_t *ci, const uint8_t *mi, size_t
         "vpxorq %%xmm27, %%xmm4, %%xmm27;" // C[11] = SIMD_XOR(C[11], S[4])
         "vpxorq %%xmm14, %%xmm19, %%xmm14;" // S[14] = SIMD_XOR(S[14], M[11])
         "vpxorq %%xmm8, %%xmm19, %%xmm8;" // S[8] = SIMD_XOR(S[8], M[11])
-        "vmovdqa64 %%xmm27, 176(%0, %%rax);" // Write back C[11] to ci[i+176:i+192]
+        "vmovdqa64 %%xmm27, 176(%0, %%rax);" // Write back C[11] to
+                                             // ci[i+176:i+192]
 
         // round 13
         "vmovdqa64 192(%1, %%rax), %%xmm20;" // Load M[12] into xmm20
@@ -567,7 +572,8 @@ HiAE_enc_vaes(HiAE_state_t *state_opaque, uint8_t *ci, const uint8_t *mi, size_t
         "vpxorq %%xmm28, %%xmm5, %%xmm28;" // C[12] = SIMD_XOR(C[12], S[5])
         "vpxorq %%xmm15, %%xmm20, %%xmm15;" // S[15] = SIMD_XOR(S[15], M[12])
         "vpxorq %%xmm9, %%xmm20, %%xmm9;" // S[9] = SIMD_XOR(S[9], M[12])
-        "vmovdqa64 %%xmm28, 192(%0, %%rax);" // Write back C[12] to ci[i+192:i+208]
+        "vmovdqa64 %%xmm28, 192(%0, %%rax);" // Write back C[12] to
+                                             // ci[i+192:i+208]
 
         // round 14
         "vmovdqa64 208(%1, %%rax), %%xmm21;" // Load M[13] into xmm21
@@ -577,7 +583,8 @@ HiAE_enc_vaes(HiAE_state_t *state_opaque, uint8_t *ci, const uint8_t *mi, size_t
         "vpxorq %%xmm29, %%xmm6, %%xmm29;" // C[13] = SIMD_XOR(C[13], S[6])
         "vpxorq %%xmm0, %%xmm21, %%xmm0;" // S[0] = SIMD_XOR(S[0], M[13])
         "vpxorq %%xmm10, %%xmm21, %%xmm10;" // S[10] = SIMD_XOR(S[10], M[13])
-        "vmovdqa64 %%xmm29, 208(%0, %%rax);" // Write back C[13] to ci[i+208:i+224]
+        "vmovdqa64 %%xmm29, 208(%0, %%rax);" // Write back C[13] to
+                                             // ci[i+208:i+224]
 
         // round 15
         "vmovdqa64 224(%1, %%rax), %%xmm22;" // Load M[14] into xmm22
@@ -587,7 +594,8 @@ HiAE_enc_vaes(HiAE_state_t *state_opaque, uint8_t *ci, const uint8_t *mi, size_t
         "vpxorq %%xmm30, %%xmm7, %%xmm30;" // C[14] = SIMD_XOR(C[14], S[7])
         "vpxorq %%xmm1, %%xmm22, %%xmm1;" // S[1] = SIMD_XOR(S[1], M[14])
         "vpxorq %%xmm11, %%xmm22, %%xmm11;" // S[11] = SIMD_XOR(S[11], M[14])
-        "vmovdqa64 %%xmm30, 224(%0, %%rax);" // Write back C[14] to ci[i+224:i+240]
+        "vmovdqa64 %%xmm30, 224(%0, %%rax);" // Write back C[14] to
+                                             // ci[i+224:i+240]
 
         // round 16
         "vmovdqa64 240(%1, %%rax), %%xmm23;" // Load M[15] into xmm23
@@ -597,7 +605,8 @@ HiAE_enc_vaes(HiAE_state_t *state_opaque, uint8_t *ci, const uint8_t *mi, size_t
         "vpxorq %%xmm31, %%xmm8, %%xmm31;" // C[15] = SIMD_XOR(C[15], S[8])
         "vpxorq %%xmm2, %%xmm23, %%xmm2;" // S[2] = SIMD_XOR(S[2], M[15])
         "vpxorq %%xmm12, %%xmm23, %%xmm12;" // S[12] = SIMD_XOR(S[12], M[15])
-        "vmovdqa64 %%xmm31, 240(%0, %%rax);" // Write back C[15] to ci[i+240:i+256]
+        "vmovdqa64 %%xmm31, 240(%0, %%rax);" // Write back C[15] to
+                                             // ci[i+240:i+256]
 
         "addq $256, %%rax;" // i += 256
         "jmp 1b;" // Loop back
@@ -687,8 +696,10 @@ HiAE_dec_vaes(HiAE_state_t *state_opaque, uint8_t *mi, const uint8_t *ci, size_t
         "jge 2f;" // If i >= prefix, jump to loop end
 
         // Prefetch next iteration data (512 bytes ahead)
-        "prefetcht0 512(%1, %%rax);" // Prefetch next chunk for reading (ciphertext)
-        "prefetcht0 512(%0, %%rax);" // Prefetch next chunk for writing (plaintext)
+        "prefetcht0 512(%1, %%rax);" // Prefetch next chunk for reading
+                                     // (ciphertext)
+        "prefetcht0 512(%0, %%rax);" // Prefetch next chunk for writing
+                                     // (plaintext)
         "prefetcht0 576(%1, %%rax);" // Prefetch more data (cache line boundary)
 
         // round 1
@@ -799,7 +810,8 @@ HiAE_dec_vaes(HiAE_state_t *state_opaque, uint8_t *mi, const uint8_t *ci, size_t
         "vaesenc %%xmm26, %%xmm18, %%xmm18;" // M[10] = AESENC(C[10], M[10])
         "vpxorq %%xmm13, %%xmm18, %%xmm13;" // S[13] = SIMD_XOR(S[13], M[10])
         "vpxorq %%xmm7, %%xmm18, %%xmm7;" // S[23] = SIMD_XOR(S[23], M[10])
-        "vmovdqu64 %%xmm18, 160(%0, %%rax);" // Write back M[10] to mi[i+160:i+176]
+        "vmovdqu64 %%xmm18, 160(%0, %%rax);" // Write back M[10] to
+                                             // mi[i+160:i+176]
 
         // round 12
         "vmovdqu64 176(%1, %%rax), %%xmm27;" // Load C[11] into xmm27
@@ -809,7 +821,8 @@ HiAE_dec_vaes(HiAE_state_t *state_opaque, uint8_t *mi, const uint8_t *ci, size_t
         "vaesenc %%xmm27, %%xmm19, %%xmm19;" // M[11] = AESENC(C[11], M[11])
         "vpxorq %%xmm14, %%xmm19, %%xmm14;" // S[14] = SIMD_XOR(S[14], M[11])
         "vpxorq %%xmm8, %%xmm19, %%xmm8;" // S[24] = SIMD_XOR(S[24], M[11])
-        "vmovdqu64 %%xmm19, 176(%0, %%rax);" // Write back M[11] to mi[i+176:i+192]
+        "vmovdqu64 %%xmm19, 176(%0, %%rax);" // Write back M[11] to
+                                             // mi[i+176:i+192]
 
         // round 13
         "vmovdqu64 192(%1, %%rax), %%xmm28;" // Load C[12] into xmm28
@@ -819,7 +832,8 @@ HiAE_dec_vaes(HiAE_state_t *state_opaque, uint8_t *mi, const uint8_t *ci, size_t
         "vaesenc %%xmm28, %%xmm20, %%xmm20;" // M[12] = AESENC(C[12], M[12])
         "vpxorq %%xmm15, %%xmm20, %%xmm15;" // S[15] = SIMD_XOR(S[15], M[12])
         "vpxorq %%xmm9, %%xmm20, %%xmm9;" // S[25] = SIMD_XOR(S[25], M[12])
-        "vmovdqu64 %%xmm20, 192(%0, %%rax);" // Write back M[12] to mi[i+192:i+208]
+        "vmovdqu64 %%xmm20, 192(%0, %%rax);" // Write back M[12] to
+                                             // mi[i+192:i+208]
 
         // round 14
         "vmovdqu64 208(%1, %%rax), %%xmm29;" // Load C[13] into xmm29
@@ -829,7 +843,8 @@ HiAE_dec_vaes(HiAE_state_t *state_opaque, uint8_t *mi, const uint8_t *ci, size_t
         "vaesenc %%xmm29, %%xmm21, %%xmm21;" // M[13] = AESENC(C[13], M[13])
         "vpxorq %%xmm0, %%xmm21, %%xmm0;" // S[16] = SIMD_XOR(S[16], M[13])
         "vpxorq %%xmm10, %%xmm21, %%xmm10;" // S[26] = SIMD_XOR(S[26], M[13])
-        "vmovdqu64 %%xmm21, 208(%0, %%rax);" // Write back M[13] to mi[i+208:i+224]
+        "vmovdqu64 %%xmm21, 208(%0, %%rax);" // Write back M[13] to
+                                             // mi[i+208:i+224]
 
         // round 15
         "vmovdqu64 224(%1, %%rax), %%xmm30;" // Load C[14] into xmm30
@@ -839,7 +854,8 @@ HiAE_dec_vaes(HiAE_state_t *state_opaque, uint8_t *mi, const uint8_t *ci, size_t
         "vaesenc %%xmm30, %%xmm22, %%xmm22;" // M[14] = AESENC(C[14], M[14])
         "vpxorq %%xmm1, %%xmm22, %%xmm1;" // S[17] = SIMD_XOR(S[17], M[14])
         "vpxorq %%xmm11, %%xmm22, %%xmm11;" // S[27] = SIMD_XOR(S[27], M[14])
-        "vmovdqu64 %%xmm22, 224(%0, %%rax);" // Write back M[14] to mi[i+224:i+240]
+        "vmovdqu64 %%xmm22, 224(%0, %%rax);" // Write back M[14] to
+                                             // mi[i+224:i+240]
 
         // round 16
         "vmovdqu64 240(%1, %%rax), %%xmm31;" // Load C[15] into xmm31
@@ -849,7 +865,8 @@ HiAE_dec_vaes(HiAE_state_t *state_opaque, uint8_t *mi, const uint8_t *ci, size_t
         "vaesenc %%xmm31, %%xmm23, %%xmm23;" // M[15] = AESENC(C[15], M[15])
         "vpxorq %%xmm2, %%xmm23, %%xmm2;" // S[18] = SIMD_XOR(S[18], M[15])
         "vpxorq %%xmm12, %%xmm23, %%xmm12;" // S[28] = SIMD_XOR(S[28], M[15])
-        "vmovdqu64 %%xmm23, 240(%0, %%rax);" // Write back M[15] to mi[i+240:i+256]
+        "vmovdqu64 %%xmm23, 240(%0, %%rax);" // Write back M[15] to
+                                             // mi[i+240:i+256]
 
         "addq $256, %%rax;" // i += 256
         "jmp 1b;" // Loop back
@@ -909,10 +926,8 @@ HiAE_dec_vaes(HiAE_state_t *state_opaque, uint8_t *mi, const uint8_t *ci, size_t
 }
 
 static void
-HiAE_enc_partial_noupdate_vaes(HiAE_state_t  *state_opaque,
-                               uint8_t       *ci,
-                               const uint8_t *mi,
-                               size_t         size)
+HiAE_enc_partial_noupdate_vaes(HiAE_state_t *state_opaque, uint8_t *ci, const uint8_t *mi,
+                               size_t size)
 {
     if (size == 0)
         return;
@@ -932,10 +947,8 @@ HiAE_enc_partial_noupdate_vaes(HiAE_state_t  *state_opaque,
 }
 
 static void
-HiAE_dec_partial_noupdate_vaes(HiAE_state_t  *state_opaque,
-                               uint8_t       *mi,
-                               const uint8_t *ci,
-                               size_t         size)
+HiAE_dec_partial_noupdate_vaes(HiAE_state_t *state_opaque, uint8_t *mi, const uint8_t *ci,
+                               size_t size)
 {
     if (size == 0)
         return;
@@ -959,14 +972,8 @@ HiAE_dec_partial_noupdate_vaes(HiAE_state_t  *state_opaque,
 }
 
 static int
-HiAE_encrypt_vaes(const uint8_t *key,
-                  const uint8_t *nonce,
-                  const uint8_t *msg,
-                  uint8_t       *ct,
-                  size_t         msg_len,
-                  const uint8_t *ad,
-                  size_t         ad_len,
-                  uint8_t       *tag)
+HiAE_encrypt_vaes(const uint8_t *key, const uint8_t *nonce, const uint8_t *msg, uint8_t *ct,
+                  size_t msg_len, const uint8_t *ad, size_t ad_len, uint8_t *tag)
 {
     HiAE_state_t state;
     HiAE_init_vaes(&state, key, nonce);
@@ -978,17 +985,11 @@ HiAE_encrypt_vaes(const uint8_t *key,
 }
 
 static int
-HiAE_decrypt_vaes(const uint8_t *key,
-                  const uint8_t *nonce,
-                  uint8_t       *msg,
-                  const uint8_t *ct,
-                  size_t         ct_len,
-                  const uint8_t *ad,
-                  size_t         ad_len,
-                  const uint8_t *tag)
+HiAE_decrypt_vaes(const uint8_t *key, const uint8_t *nonce, uint8_t *msg, const uint8_t *ct,
+                  size_t ct_len, const uint8_t *ad, size_t ad_len, const uint8_t *tag)
 {
-    HiAE_state_t state;
-    HIAE_ALIGN(64) uint8_t      computed_tag[HIAE_MACBYTES];
+    HiAE_state_t           state;
+    HIAE_ALIGN(64) uint8_t computed_tag[HIAE_MACBYTES];
     HiAE_init_vaes(&state, key, nonce);
     HiAE_absorb_vaes(&state, ad, ad_len);
     HiAE_dec_vaes(&state, msg, ct, ct_len);

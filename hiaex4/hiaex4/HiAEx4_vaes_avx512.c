@@ -12,15 +12,25 @@
                                          apply_to = function)
 #        endif
 #    elif defined(__GNUC__)
-// The code doesn't need avx512vl, but without it GCC only uses half of the vector registers for AES and the loops end up shuffling data around. Every CPU with VAES and AVX-512 has it anyway.
+// The code doesn't need avx512vl, but without it GCC only uses half of the
+// vector registers for AES and the loops end up shuffling data around. Every
+// CPU with VAES and AVX-512 has it anyway.
 #        pragma GCC target("aes,vaes,avx512f,avx512vl")
 #    endif
 
 #    include <immintrin.h>
 
-// The state is kept in 16 separate variables rather than an array, so that compilers keep it in registers. Instead of shifting the state after every block, the code just uses the variables in a different order, and the order repeats every 16 blocks.
+// The state is kept in 16 separate variables rather than an array, so that
+// compilers keep it in registers. Instead of shifting the state after every
+// block, the code just uses the variables in a different order, and the order
+// repeats every 16 blocks.
 //
-// Each state word gets XORed with two message blocks at different times. The bulk loops apply both at once, later than the reference code does, which saves an operation per block. That means holding on to the last few message blocks, in registers since in-place encryption overwrites them in memory. When a loop ends, whatever is still pending gets applied, so the state matches the reference code again.
+// Each state word gets XORed with two message blocks at different times. The
+// bulk loops apply both at once, later than the reference code does, which
+// saves an operation per block. That means holding on to the last few message
+// blocks, in registers since in-place encryption overwrites them in memory.
+// When a loop ends, whatever is still pending gets applied, so the state
+// matches the reference code again.
 
 typedef __m512i DATA512b;
 
@@ -39,7 +49,8 @@ typedef __m512i DATA512b;
                                                   _mm512_extracti32x4_epi32(x, 3))))
 #    define AESENC(x, y) _mm512_aesenc_epi128((x), (y))
 
-// Keeps GCC from mixing consecutive steps together, which makes it run out of registers. clang doesn't need it.
+// Keeps GCC from mixing consecutive steps together, which makes it run out of
+// registers. clang doesn't need it.
 #    if defined(__GNUC__) && !defined(__clang__)
 #        define STEP_BARRIER(a, b, c) __asm__("" : "+v"(a), "+v"(b), "+v"(c))
 #        define STEP_BARRIER5(a, b, c, d, e) \
@@ -49,7 +60,9 @@ typedef __m512i DATA512b;
 #        define STEP_BARRIER5(a, b, c, d, e) (void) 0
 #    endif
 
-// a ^ b ^ c, for when a is the input that arrives last. On Zen 4 the three-way XOR is a cycle faster if that input is the one it overwrites, and compilers would otherwise pick the operand order themselves.
+// a ^ b ^ c, for when a is the input that arrives last. On Zen 4 the three-way
+// XOR is a cycle faster if that input is the one it overwrites, and compilers
+// would otherwise pick the operand order themselves.
 static inline DATA512b
 xor3_fast(DATA512b a, const DATA512b b, const DATA512b c)
 {
@@ -109,7 +122,9 @@ xor3_fast(DATA512b a, const DATA512b b, const DATA512b c)
         SIMD_XOR(SIMD_XOR3(SIMD_XOR3(s0, s1, s2), SIMD_XOR3(s3, s4, s5), SIMD_XOR3(s6, s7, s8)), \
                  SIMD_XOR3(SIMD_XOR3(s9, s10, s11), SIMD_XOR3(s12, s13, s14), s15))
 
-// What each of the 16 steps of a chunk works on: its state words, its message block, and the blocks from 4 and 10 steps earlier (h0..h9 are the last blocks of the previous chunk).
+// What each of the 16 steps of a chunk works on: its state words, its message
+// block, and the blocks from 4 and 10 steps earlier (h0..h9 are the last blocks
+// of the previous chunk).
 #    define ROUNDS16(F)                            \
         F(0, s0, s1, s3, s9, s13, m0, h6, h0)      \
         F(1, s1, s2, s4, s10, s14, m1, h7, h1)     \
@@ -179,7 +194,12 @@ xor3_fast(DATA512b a, const DATA512b b, const DATA512b c)
         S3 = SIMD_XOR3(S3, Mi10, Mi);                          \
         STEP_BARRIER(S0, S3, Mi);
 
-// Decryption is limited by latency rather than throughput, since every decrypted block is needed to decrypt the block two steps later. This loop splits the pending XORs differently from the others, so that a single three-way XOR sits between a decrypted block and the AES round that needs it. It costs an extra XOR per block, and the next two AES inputs are carried over from one chunk to the next (xa, xb).
+// Decryption is limited by latency rather than throughput, since every
+// decrypted block is needed to decrypt the block two steps later. This loop
+// splits the pending XORs differently from the others, so that a single
+// three-way XOR sits between a decrypted block and the AES round that needs it.
+// It costs an extra XOR per block, and the next two AES inputs are carried over
+// from one chunk to the next (xa, xb).
 #    define DEC_ROUNDS16(F)                                      \
         F(0, s0, s2, s3, s4, s9, s13, m0, h6, h1, xa, x2)        \
         F(1, s1, s3, s4, s5, s10, s14, m1, h7, h2, xb, x3)       \
@@ -225,7 +245,8 @@ xor3_fast(DATA512b a, const DATA512b b, const DATA512b c)
             h9 = m15;           \
         } while (0)
 
-// Applies the message blocks that are still pending when the decryption loop ends.
+// Applies the message blocks that are still pending when the decryption loop
+// ends.
 #    define DEC_HISTORY_APPLY()      \
         do {                         \
             s4  = SIMD_XOR(s4, h1);  \
@@ -239,7 +260,8 @@ xor3_fast(DATA512b a, const DATA512b b, const DATA512b c)
             s12 = SIMD_XOR(s12, h9); \
         } while (0)
 
-// Plain steps, as in the reference code, for the blocks left over after a bulk loop.
+// Plain steps, as in the reference code, for the blocks left over after a bulk
+// loop.
 
 #    define UPDATE(S0, S1, S3, S13, M)                         \
         do {                                                   \
@@ -267,7 +289,8 @@ xor3_fast(DATA512b a, const DATA512b b, const DATA512b c)
             S13               = SIMD_XOR(S13, (M));           \
         } while (0)
 
-// The last, partial block when decrypting: only the actual plaintext bytes, padded with zeros, go into the state.
+// The last, partial block when decrypting: only the actual plaintext bytes,
+// padded with zeros, go into the state.
 #    define DEC_LAST(S0, S1, S3, S9, S13, C, MASK, M)                            \
         do {                                                                     \
             const DATA512b x_ = SIMD_XOR(S0, S1);                                \
@@ -277,7 +300,8 @@ xor3_fast(DATA512b a, const DATA512b b, const DATA512b c)
             S13               = SIMD_XOR(S13, (M));                              \
         } while (0)
 
-// Handles what's left after a bulk loop, and counts the steps so that the state can be put back in order afterwards.
+// Handles what's left after a bulk loop, and counts the steps so that the state
+// can be put back in order afterwards.
 
 #    define AD_TAIL(i, S0, S1, S3, S9, S13, Mi, Mi4, Mi10) \
         if ((i) == nfull) {                                \
@@ -336,7 +360,10 @@ xor3_fast(DATA512b a, const DATA512b b, const DATA512b c)
             SIMD_STORE(mi + 64 * (i), m_);                  \
         }
 
-// The 32 updates of initialization and finalization, where the message block alternates between two fixed values. Most of the pending XORs cancel out because a word gets the same value twice, so only the first and last few are actually done.
+// The 32 updates of initialization and finalization, where the message block
+// alternates between two fixed values. Most of the pending XORs cancel out
+// because a word gets the same value twice, so only the first and last few are
+// actually done.
 #    define CUPD(S0, S1, S13, M) S0 = AESENC(S13, AESENC(SIMD_XOR(S0, S1), (M)))
 
 #    define UPDATE_32_CONST(ME, MO)  \
@@ -397,7 +424,10 @@ xor3_fast(DATA512b a, const DATA512b b, const DATA512b c)
             s12 = SIMD_XOR(s12, MO); \
         } while (0)
 
-// Each phase keeps the state in registers. The one-shot functions chain them without ever writing the state to memory, which makes a big difference for short messages, while the low-level API loads and saves the state around each phase.
+// Each phase keeps the state in registers. The one-shot functions chain them
+// without ever writing the state to memory, which makes a big difference for
+// short messages, while the low-level API loads and saves the state around each
+// phase.
 #    if defined(_MSC_VER) && !defined(__clang__)
 #        define HIAE_ALWAYS_INLINE __forceinline
 #    else
@@ -438,7 +468,8 @@ xor3_fast(DATA512b a, const DATA512b b, const DATA512b c)
             *ps15 = s15; \
         } while (0)
 
-// Puts the state words back in order after a tail, which can stop at any step. Modern CPUs handle these register copies for free.
+// Puts the state words back in order after a tail, which can stop at any step.
+// Modern CPUs handle these register copies for free.
 #    define STATE_ROTATE(r)                                                                        \
         do {                                                                                       \
             const DATA512b t0 = s0, t1 = s1, t2 = s2, t3 = s3, t4 = s4, t5 = s5, t6 = s6, t7 = s7, \
@@ -732,8 +763,8 @@ init_regs(STATE_PARAMS, const uint8_t *key, const uint8_t *nonce)
     const DATA512b ze = SIMD_ZERO_512();
 
     // Makes every lane different: its index and the number of lanes minus one
-    const uint8_t degree                = 4;
-    HIAE_ALIGN(64) uint8_t       ctx_bytes[BLOCK_SIZE] = { 0 };
+    const uint8_t          degree                = 4;
+    HIAE_ALIGN(64) uint8_t ctx_bytes[BLOCK_SIZE] = { 0 };
     for (size_t i = 0; i < degree; i++) {
         ctx_bytes[i * 16 + 0] = (uint8_t) i;
         ctx_bytes[i * 16 + 1] = degree - 1;
@@ -783,9 +814,9 @@ absorb_regs(STATE_PARAMS, const uint8_t *ad, size_t len)
         HISTORY_APPLY();
     }
     {
-        const size_t nfull = len / BLOCK_SIZE;
-        const size_t pad   = len % BLOCK_SIZE;
-        HIAE_ALIGN(64) uint8_t      pbuf[BLOCK_SIZE];
+        const size_t           nfull = len / BLOCK_SIZE;
+        const size_t           pad   = len % BLOCK_SIZE;
+        HIAE_ALIGN(64) uint8_t pbuf[BLOCK_SIZE];
 
         if (pad != 0) {
             memset(pbuf, 0, sizeof pbuf);
@@ -821,9 +852,9 @@ enc_regs(STATE_PARAMS, uint8_t *ci, const uint8_t *mi, size_t size)
         HISTORY_APPLY();
     }
     {
-        const size_t nfull = size / BLOCK_SIZE;
-        const size_t pad   = size % BLOCK_SIZE;
-        HIAE_ALIGN(64) uint8_t      pbuf[BLOCK_SIZE];
+        const size_t           nfull = size / BLOCK_SIZE;
+        const size_t           pad   = size % BLOCK_SIZE;
+        HIAE_ALIGN(64) uint8_t pbuf[BLOCK_SIZE];
 
         if (pad != 0) {
             memset(pbuf, 0, sizeof pbuf);
@@ -865,10 +896,10 @@ dec_regs(STATE_PARAMS, uint8_t *mi, const uint8_t *ci, size_t size)
         DEC_HISTORY_APPLY();
     }
     {
-        const size_t nfull = size / BLOCK_SIZE;
-        const size_t pad   = size % BLOCK_SIZE;
-        HIAE_ALIGN(64) uint8_t      pbuf[BLOCK_SIZE];
-        HIAE_ALIGN(64) uint8_t      pmask[BLOCK_SIZE];
+        const size_t           nfull = size / BLOCK_SIZE;
+        const size_t           pad   = size % BLOCK_SIZE;
+        HIAE_ALIGN(64) uint8_t pbuf[BLOCK_SIZE];
+        HIAE_ALIGN(64) uint8_t pmask[BLOCK_SIZE];
 
         if (pad != 0) {
             memset(pbuf, 0, sizeof pbuf);
@@ -901,16 +932,17 @@ finalize_regs(STATE_PARAMS, uint64_t ad_len, uint64_t msg_len, uint8_t *tag)
     STATE_OUT();
 }
 
-// Like the regular finalization, but the tags of all lanes are then mixed into a single one.
+// Like the regular finalization, but the tags of all lanes are then mixed into
+// a single one.
 static HIAE_ALWAYS_INLINE void
 finalize_mac_regs(STATE_PARAMS, uint64_t data_len, uint8_t *tag)
 {
     STATE_IN;
-    const uint8_t degree = 4;
-    HIAE_ALIGN(64) uint64_t      lens[2];
-    HIAE_ALIGN(64) uint8_t       tag_multi_bytes[BLOCK_SIZE];
-    HIAE_ALIGN(64) uint8_t       v_block[BLOCK_SIZE];
-    DATA512b      v;
+    const uint8_t           degree = 4;
+    HIAE_ALIGN(64) uint64_t lens[2];
+    HIAE_ALIGN(64) uint8_t  tag_multi_bytes[BLOCK_SIZE];
+    HIAE_ALIGN(64) uint8_t  v_block[BLOCK_SIZE];
+    DATA512b                v;
 
     lens[0]       = data_len * 8;
     lens[1]       = HIAEX4_MACBYTES * 8;
@@ -919,7 +951,8 @@ finalize_mac_regs(STATE_PARAMS, uint64_t data_len, uint8_t *tag)
 
     SIMD_STORE(tag_multi_bytes, STATE_FOLD());
 
-    // Absorbs the tags of lanes 1 to 3, each one in the first lane of an otherwise empty block
+    // Absorbs the tags of lanes 1 to 3, each one in the first lane of an
+    // otherwise empty block
     memset(v_block, 0, sizeof v_block);
     memcpy(v_block, tag_multi_bytes + 1 * HIAEX4_MACBYTES, HIAEX4_MACBYTES);
     v = SIMD_LOAD(v_block);
@@ -962,10 +995,8 @@ HiAEx4_absorb_vaes_avx512(HiAEx4_state_t *state_opaque, const uint8_t *ad, size_
 }
 
 static void
-HiAEx4_finalize_vaes_avx512(HiAEx4_state_t *state_opaque,
-                            uint64_t        ad_len,
-                            uint64_t        msg_len,
-                            uint8_t        *tag)
+HiAEx4_finalize_vaes_avx512(HiAEx4_state_t *state_opaque, uint64_t ad_len, uint64_t msg_len,
+                            uint8_t *tag)
 {
     STATE_DECL;
     STATE_LOAD(state_opaque->opaque);
@@ -994,12 +1025,11 @@ HiAEx4_enc_vaes_avx512(HiAEx4_state_t *state_opaque, uint8_t *ci, const uint8_t 
     STATE_STORE(state_opaque->opaque);
 }
 
-#    define STREAM_STEP(i, S0, S1, S3, S9, S13, Mi, Mi4, Mi10)                 \
-        {                                                                      \
-            const DATA512b t_ = AESENC(SIMD_XOR(S0, S1), SIMD_ZERO_512());     \
-            S0 = AESENC(S13, t_);                                              \
-            SIMD_STORE(ci + 64 * (i),                                          \
-                       SIMD_XOR3(t_, S9, SIMD_LOAD(mi + 64 * (i))));           \
+#    define STREAM_STEP(i, S0, S1, S3, S9, S13, Mi, Mi4, Mi10)                      \
+        {                                                                           \
+            const DATA512b t_ = AESENC(SIMD_XOR(S0, S1), SIMD_ZERO_512());          \
+            S0                = AESENC(S13, t_);                                    \
+            SIMD_STORE(ci + 64 * (i), SIMD_XOR3(t_, S9, SIMD_LOAD(mi + 64 * (i)))); \
         }
 
 #    define STREAM_TAIL(i, S0, S1, S3, S9, S13, Mi, Mi4, Mi10)                 \
@@ -1007,7 +1037,7 @@ HiAEx4_enc_vaes_avx512(HiAEx4_state_t *state_opaque, uint8_t *ci, const uint8_t 
             r = (i);                                                           \
             if (pad != 0) {                                                    \
                 const DATA512b t_ = AESENC(SIMD_XOR(S0, S1), SIMD_ZERO_512()); \
-                S0 = AESENC(S13, t_);                                          \
+                S0                = AESENC(S13, t_);                           \
                 SIMD_STORE(pbuf, SIMD_XOR(t_, S9));                            \
                 r++;                                                           \
             }                                                                  \
@@ -1032,8 +1062,8 @@ stream_xor(HiAEx4_state_t *state_opaque, uint8_t *ci, const uint8_t *mi, size_t 
         size -= UNROLL_BLOCK_SIZE;
     }
     {
-        const size_t nfull = size / BLOCK_SIZE;
-        const size_t pad = size % BLOCK_SIZE;
+        const size_t           nfull = size / BLOCK_SIZE;
+        const size_t           pad   = size % BLOCK_SIZE;
         HIAE_ALIGN(64) uint8_t pbuf[BLOCK_SIZE];
 
         ROUNDS16(STREAM_TAIL)
@@ -1063,13 +1093,11 @@ HiAEx4_dec_vaes_avx512(HiAEx4_state_t *state_opaque, uint8_t *mi, const uint8_t 
 }
 
 static void
-HiAEx4_enc_partial_noupdate_vaes_avx512(HiAEx4_state_t *state_opaque,
-                                        uint8_t        *ci,
-                                        const uint8_t  *mi,
-                                        size_t          size)
+HiAEx4_enc_partial_noupdate_vaes_avx512(HiAEx4_state_t *state_opaque, uint8_t *ci,
+                                        const uint8_t *mi, size_t size)
 {
-    const uint8_t *const st = state_opaque->opaque;
-    HIAE_ALIGN(64) uint8_t              buf[BLOCK_SIZE];
+    const uint8_t *const   st = state_opaque->opaque;
+    HIAE_ALIGN(64) uint8_t buf[BLOCK_SIZE];
 
     if (size == 0) {
         return;
@@ -1083,13 +1111,11 @@ HiAEx4_enc_partial_noupdate_vaes_avx512(HiAEx4_state_t *state_opaque,
 }
 
 static void
-HiAEx4_dec_partial_noupdate_vaes_avx512(HiAEx4_state_t *state_opaque,
-                                        uint8_t        *mi,
-                                        const uint8_t  *ci,
-                                        size_t          size)
+HiAEx4_dec_partial_noupdate_vaes_avx512(HiAEx4_state_t *state_opaque, uint8_t *mi,
+                                        const uint8_t *ci, size_t size)
 {
-    const uint8_t *const st = state_opaque->opaque;
-    HIAE_ALIGN(64) uint8_t              buf[BLOCK_SIZE];
+    const uint8_t *const   st = state_opaque->opaque;
+    HIAE_ALIGN(64) uint8_t buf[BLOCK_SIZE];
 
     if (size == 0) {
         return;
@@ -1103,14 +1129,9 @@ HiAEx4_dec_partial_noupdate_vaes_avx512(HiAEx4_state_t *state_opaque,
 }
 
 static int
-HiAEx4_encrypt_vaes_avx512(const uint8_t *key,
-                           const uint8_t *nonce,
-                           const uint8_t *msg,
-                           uint8_t       *ct,
-                           size_t         msg_len,
-                           const uint8_t *ad,
-                           size_t         ad_len,
-                           uint8_t       *tag)
+HiAEx4_encrypt_vaes_avx512(const uint8_t *key, const uint8_t *nonce, const uint8_t *msg,
+                           uint8_t *ct, size_t msg_len, const uint8_t *ad, size_t ad_len,
+                           uint8_t *tag)
 {
     STATE_DECL;
     init_regs(STATE_ARGS, key, nonce);
@@ -1122,13 +1143,8 @@ HiAEx4_encrypt_vaes_avx512(const uint8_t *key,
 }
 
 static int
-HiAEx4_decrypt_vaes_avx512(const uint8_t *key,
-                           const uint8_t *nonce,
-                           uint8_t       *msg,
-                           const uint8_t *ct,
-                           size_t         ct_len,
-                           const uint8_t *ad,
-                           size_t         ad_len,
+HiAEx4_decrypt_vaes_avx512(const uint8_t *key, const uint8_t *nonce, uint8_t *msg,
+                           const uint8_t *ct, size_t ct_len, const uint8_t *ad, size_t ad_len,
                            const uint8_t *tag)
 {
     STATE_DECL;
@@ -1142,8 +1158,8 @@ HiAEx4_decrypt_vaes_avx512(const uint8_t *key,
 }
 
 static int
-HiAEx4_mac_vaes_avx512(
-    const uint8_t *key, const uint8_t *nonce, const uint8_t *data, size_t data_len, uint8_t *tag)
+HiAEx4_mac_vaes_avx512(const uint8_t *key, const uint8_t *nonce, const uint8_t *data,
+                       size_t data_len, uint8_t *tag)
 {
     STATE_DECL;
     init_regs(STATE_ARGS, key, nonce);

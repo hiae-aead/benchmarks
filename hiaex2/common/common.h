@@ -37,7 +37,8 @@
 #            undef HAVE_VAESINTRIN_H
 #        endif
 #    endif
-/* target pragmas don't define these flags on clang-cl (an alternative clang driver for Windows) */
+/* target pragmas don't define these flags on clang-cl (an alternative clang
+ * driver for Windows) */
 #    if defined(__clang__) && defined(_MSC_BUILD) && defined(_MSC_VER) && \
         (defined(_M_IX86) || defined(_M_AMD64)) && !defined(__SSE3__)
 #        undef __SSE3__
@@ -79,7 +80,8 @@
 #    undef HAVE_AVX512FINTRIN_H
 #endif
 
-/* The C0 and C1 constants from the specification, which the parallel variants use in every lane */
+/* The C0 and C1 constants from the specification, which the parallel variants
+ * use in every lane */
 #define HIAE_C0_BYTES \
     0x32, 0x43, 0xf6, 0xa8, 0x88, 0x5a, 0x30, 0x8d, 0x31, 0x31, 0x98, 0xa2, 0xe0, 0x37, 0x07, 0x34
 #define HIAE_C1_BYTES \

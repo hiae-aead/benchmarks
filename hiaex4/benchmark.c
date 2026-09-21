@@ -377,7 +377,7 @@ main(int argc, char *argv[])
         printf("Implementation: Runtime CPU feature detection\n");
     }
 
-    double  timer_resolution = 1.0;
+    double       timer_resolution = 1.0;
     hiae_timer_t res_timer;
     for (int i = 0; i < 100; i++) {
         timer_start(&res_timer);

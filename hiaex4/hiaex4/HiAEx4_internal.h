@@ -45,7 +45,8 @@ typedef struct {
 #define BLOCK_SIZE        (4 * 16)
 #define STATE             16
 
-/* Implementation forcing macros - define at compile time to force specific implementation */
+/* Implementation forcing macros - define at compile time to force specific
+ * implementation */
 #ifdef HIAEX4_FORCE_SOFTWARE
 #    define HIAEX4_FORCED_IMPL "Software"
 #endif
@@ -60,9 +61,11 @@ typedef struct {
 #endif
 
 /* Internal constant arrays */
-HIAE_ALIGN(64) static const uint8_t C0[BLOCK_SIZE] = { HIAE_C0_BYTES, HIAE_C0_BYTES, HIAE_C0_BYTES,
+HIAE_ALIGN(64)
+static const uint8_t C0[BLOCK_SIZE] = { HIAE_C0_BYTES, HIAE_C0_BYTES, HIAE_C0_BYTES,
                                         HIAE_C0_BYTES };
-HIAE_ALIGN(64) static const uint8_t C1[BLOCK_SIZE] = { HIAE_C1_BYTES, HIAE_C1_BYTES, HIAE_C1_BYTES,
+HIAE_ALIGN(64)
+static const uint8_t C1[BLOCK_SIZE] = { HIAE_C1_BYTES, HIAE_C1_BYTES, HIAE_C1_BYTES,
                                         HIAE_C1_BYTES };
 
 /* Internal helper functions */

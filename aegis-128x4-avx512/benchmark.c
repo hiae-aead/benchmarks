@@ -24,9 +24,9 @@ size_t    test_case[11] = { 65536, 32768, 16384, 8192, 4096, 2048, 1024, 512, 25
 static int csv_output = 0;
 
 typedef struct {
-    double        gbps;
-    double        mbps;
-    double        cycles_per_byte;
+    double         gbps;
+    double         mbps;
+    double         cycles_per_byte;
     aegis_stats_t *stats;
 } perf_result_t;
 
@@ -381,7 +381,7 @@ main(int argc, char *argv[])
         printf("Implementation: %s\n", AEGIS_IMPLEMENTATION);
     }
 
-    double       timer_resolution = 1.0;
+    double        timer_resolution = 1.0;
     aegis_timer_t res_timer;
     for (int i = 0; i < 100; i++) {
         aegis_timer_start(&res_timer);

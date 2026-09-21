@@ -175,7 +175,8 @@ encrypt_chunk(DATA128b *state, DATA128b *M, DATA128b *C, const uint8_t *mi, uint
     PREFETCH_WRITE(ci + i + PREFETCH_DISTANCE, 0);
 
     // Process blocks in groups of 4 to reduce register pressure
-    // This prevents GCC from trying to keep all 16 M[] and C[] values in registers
+    // This prevents GCC from trying to keep all 16 M[] and C[] values in
+    // registers
 
     // Group 1: blocks 0-3
     LOAD_1BLOCK_offset_enc(M[0], 0);
@@ -235,13 +236,8 @@ encrypt_chunk(DATA128b *state, DATA128b *M, DATA128b *C, const uint8_t *mi, uint
 }
 
 static inline void
-decrypt_chunk(DATA128b      *state,
-              DATA128b      *tmp,
-              DATA128b      *M,
-              DATA128b      *C,
-              const uint8_t *ci,
-              uint8_t       *mi,
-              size_t         i)
+decrypt_chunk(DATA128b *state, DATA128b *tmp, DATA128b *M, DATA128b *C, const uint8_t *ci,
+              uint8_t *mi, size_t i)
 {
     PREFETCH_READ(ci + i + PREFETCH_DISTANCE, 0);
     PREFETCH_WRITE(mi + i + PREFETCH_DISTANCE, 0);
@@ -344,9 +340,9 @@ HiAE_absorb_aesni(HiAE_state_t *state_opaque, const uint8_t *ad, size_t len)
 {
     HIAE_ALIGN(64) DATA128b state[STATE];
     memcpy(state, state_opaque->opaque, sizeof(state));
-    size_t   i      = 0;
-    size_t   rest   = len % UNROLL_BLOCK_SIZE;
-    size_t   prefix = len - rest;
+    size_t                  i      = 0;
+    size_t                  rest   = len % UNROLL_BLOCK_SIZE;
+    size_t                  prefix = len - rest;
     HIAE_ALIGN(64) DATA128b tmp[STATE], M[16];
     if (len == 0)
         return;
@@ -482,10 +478,8 @@ HiAE_dec_aesni(HiAE_state_t *state_opaque, uint8_t *mi, const uint8_t *ci, size_
 }
 
 static void
-HiAE_enc_partial_noupdate_aesni(HiAE_state_t  *state_opaque,
-                                uint8_t       *ci,
-                                const uint8_t *mi,
-                                size_t         size)
+HiAE_enc_partial_noupdate_aesni(HiAE_state_t *state_opaque, uint8_t *ci, const uint8_t *mi,
+                                size_t size)
 {
     if (size == 0)
         return;
@@ -505,10 +499,8 @@ HiAE_enc_partial_noupdate_aesni(HiAE_state_t  *state_opaque,
 }
 
 static void
-HiAE_dec_partial_noupdate_aesni(HiAE_state_t  *state_opaque,
-                                uint8_t       *mi,
-                                const uint8_t *ci,
-                                size_t         size)
+HiAE_dec_partial_noupdate_aesni(HiAE_state_t *state_opaque, uint8_t *mi, const uint8_t *ci,
+                                size_t size)
 {
     if (size == 0)
         return;
@@ -532,14 +524,8 @@ HiAE_dec_partial_noupdate_aesni(HiAE_state_t  *state_opaque,
 }
 
 static int
-HiAE_encrypt_aesni(const uint8_t *key,
-                   const uint8_t *nonce,
-                   const uint8_t *msg,
-                   uint8_t       *ct,
-                   size_t         msg_len,
-                   const uint8_t *ad,
-                   size_t         ad_len,
-                   uint8_t       *tag)
+HiAE_encrypt_aesni(const uint8_t *key, const uint8_t *nonce, const uint8_t *msg, uint8_t *ct,
+                   size_t msg_len, const uint8_t *ad, size_t ad_len, uint8_t *tag)
 {
     HiAE_state_t state;
     HiAE_init_aesni(&state, key, nonce);
@@ -551,17 +537,11 @@ HiAE_encrypt_aesni(const uint8_t *key,
 }
 
 static int
-HiAE_decrypt_aesni(const uint8_t *key,
-                   const uint8_t *nonce,
-                   uint8_t       *msg,
-                   const uint8_t *ct,
-                   size_t         ct_len,
-                   const uint8_t *ad,
-                   size_t         ad_len,
-                   const uint8_t *tag)
+HiAE_decrypt_aesni(const uint8_t *key, const uint8_t *nonce, uint8_t *msg, const uint8_t *ct,
+                   size_t ct_len, const uint8_t *ad, size_t ad_len, const uint8_t *tag)
 {
-    HiAE_state_t state;
-    HIAE_ALIGN(64) uint8_t      computed_tag[HIAE_MACBYTES];
+    HiAE_state_t           state;
+    HIAE_ALIGN(64) uint8_t computed_tag[HIAE_MACBYTES];
     HiAE_init_aesni(&state, key, nonce);
     HiAE_absorb_aesni(&state, ad, ad_len);
     HiAE_dec_aesni(&state, msg, ct, ct_len);
@@ -571,8 +551,8 @@ HiAE_decrypt_aesni(const uint8_t *key,
 }
 
 static int
-HiAE_mac_aesni(
-    const uint8_t *key, const uint8_t *nonce, const uint8_t *data, size_t data_len, uint8_t *tag)
+HiAE_mac_aesni(const uint8_t *key, const uint8_t *nonce, const uint8_t *data, size_t data_len,
+               uint8_t *tag)
 {
     HiAE_state_t state;
     HiAE_init_aesni(&state, key, nonce);

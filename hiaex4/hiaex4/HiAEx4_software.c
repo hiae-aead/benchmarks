@@ -1,7 +1,8 @@
 #include "HiAEx4.h"
 #include "HiAEx4_internal.h"
 
-// Only compile software implementation if hardware AES+VAES+AVX512 is not available
+// Only compile software implementation if hardware AES+VAES+AVX512 is not
+// available
 #ifndef HIAEX4_HAS_HW_AES
 
 #    define FAVOR_PERFORMANCE
@@ -172,7 +173,7 @@ static inline void
 update_state_offset(DATA512b *state, DATA512b M, int offset)
 {
     DATA512b t = XAESL_NC(state[(P_0 + offset) % STATE], state[(P_1 + offset) % STATE]);
-    t                             = SIMD_XOR(t, M);
+    t          = SIMD_XOR(t, M);
     state[(0 + offset) % STATE]   = SIMD_XOR(t, AESL_NC(state[(P_4 + offset) % STATE]));
     state[(I_1 + offset) % STATE] = SIMD_XOR(state[(I_1 + offset) % STATE], M);
     state[(I_2 + offset) % STATE] = SIMD_XOR(state[(I_2 + offset) % STATE], M);
@@ -191,8 +192,8 @@ enc_offset(DATA512b *state, DATA512b M, int offset)
 {
     DATA512b C = XAESL_NC(state[(P_0 + offset) % STATE], state[(P_1 + offset) % STATE]);
     C          = SIMD_XOR(C, M);
-    state[(0 + offset) % STATE]   = SIMD_XOR(C, AESL_NC(state[(P_4 + offset) % STATE]));
-    C                             = SIMD_XOR(SIMD_XOR(C, state[(P_7 + offset) % STATE]), AESL_C63());
+    state[(0 + offset) % STATE] = SIMD_XOR(C, AESL_NC(state[(P_4 + offset) % STATE]));
+    C                           = SIMD_XOR(SIMD_XOR(C, state[(P_7 + offset) % STATE]), AESL_C63());
     state[(I_1 + offset) % STATE] = SIMD_XOR(state[(I_1 + offset) % STATE], M);
     state[(I_2 + offset) % STATE] = SIMD_XOR(state[(I_2 + offset) % STATE], M);
     return C;
@@ -263,9 +264,9 @@ SOFTAES_CHUNK_FN
 ad_update(DATA512b *state, const uint8_t *ad, size_t i)
 {
     DATA512b M;
-#    define AD_STEP(o)                            \
-        do {                                      \
-            LOAD_1BLOCK_offset_ad(M, o);          \
+#    define AD_STEP(o)                        \
+        do {                                  \
+            LOAD_1BLOCK_offset_ad(M, o);      \
             update_state_offset(state, M, o); \
         } while (0)
     AD_STEP(0);
@@ -320,11 +321,11 @@ SOFTAES_CHUNK_FN
 decrypt_chunk(DATA512b *state, const uint8_t *ci, uint8_t *mi, size_t i)
 {
     DATA512b M, C;
-#    define DEC_STEP(o)                       \
-        do {                                  \
-            LOAD_1BLOCK_offset_dec(C, o);     \
-            M = dec_offset(state, C, o); \
-            STORE_1BLOCK_offset_dec(M, o);    \
+#    define DEC_STEP(o)                    \
+        do {                               \
+            LOAD_1BLOCK_offset_dec(C, o);  \
+            M = dec_offset(state, C, o);   \
+            STORE_1BLOCK_offset_dec(M, o); \
         } while (0)
     DEC_STEP(0);
     DEC_STEP(1);
@@ -375,8 +376,8 @@ HiAEx4_init_software(HiAEx4_state_t *state_opaque, const uint8_t *key, const uin
     state[15]   = SIMD_XOR(c0, c1);
 
     // Context separation
-    const uint8_t degree                = 4;
-    HIAE_ALIGN(64) uint8_t       ctx_bytes[BLOCK_SIZE] = { 0 };
+    const uint8_t          degree                = 4;
+    HIAE_ALIGN(64) uint8_t ctx_bytes[BLOCK_SIZE] = { 0 };
     for (size_t i = 0; i < degree; i++) {
         ctx_bytes[i * 16 + 0] = (uint8_t) i;
         ctx_bytes[i * 16 + 1] = degree - 1;
@@ -398,9 +399,9 @@ HiAEx4_absorb_software(HiAEx4_state_t *state_opaque, const uint8_t *ad, size_t l
 {
     HIAE_ALIGN(64) DATA512b state[STATE];
     memcpy(state, state_opaque->opaque, sizeof(state));
-    size_t   i      = 0;
-    size_t   rest   = len % UNROLL_BLOCK_SIZE;
-    size_t   prefix = len - rest;
+    size_t                  i      = 0;
+    size_t                  rest   = len % UNROLL_BLOCK_SIZE;
+    size_t                  prefix = len - rest;
     HIAE_ALIGN(64) DATA512b tmp[STATE], M[16];
     if (len == 0)
         return;
@@ -429,10 +430,8 @@ HiAEx4_absorb_software(HiAEx4_state_t *state_opaque, const uint8_t *ad, size_t l
 
 /* Convert byte lengths to bit lengths */
 static void
-HiAEx4_finalize_software(HiAEx4_state_t *state_opaque,
-                         uint64_t        ad_len,
-                         uint64_t        msg_len,
-                         uint8_t        *tag)
+HiAEx4_finalize_software(HiAEx4_state_t *state_opaque, uint64_t ad_len, uint64_t msg_len,
+                         uint8_t *tag)
 {
     HIAE_ALIGN(64) DATA512b state[STATE];
     memcpy(state, state_opaque->opaque, sizeof(state));
@@ -451,14 +450,15 @@ HiAEx4_finalize_software(HiAEx4_state_t *state_opaque,
     memcpy(state_opaque->opaque, state, sizeof(state));
 }
 
-/* Enhanced MAC finalization with proper domain separation for multi-parallel implementations */
+/* Enhanced MAC finalization with proper domain separation for multi-parallel
+ * implementations */
 static void
 HiAEx4_finalize_mac_software(HiAEx4_state_t *state_opaque, uint64_t data_len, uint8_t *tag)
 {
     HIAE_ALIGN(64) DATA512b state[STATE];
     memcpy(state, state_opaque->opaque, sizeof(state));
-    HIAE_ALIGN(64) DATA512b      tmp[STATE];
-    const uint8_t degree = 4;
+    HIAE_ALIGN(64) DATA512b tmp[STATE];
+    const uint8_t           degree = 4;
 
     /* Step 1: Initial diffusion with data_len and HIAEX4_MACBYTES */
     HIAE_ALIGN(64) uint64_t lens[2];
@@ -590,10 +590,8 @@ HiAEx4_dec_software(HiAEx4_state_t *state_opaque, uint8_t *mi, const uint8_t *ci
 }
 
 static void
-HiAEx4_enc_partial_noupdate_software(HiAEx4_state_t *state_opaque,
-                                     uint8_t        *ci,
-                                     const uint8_t  *mi,
-                                     size_t          size)
+HiAEx4_enc_partial_noupdate_software(HiAEx4_state_t *state_opaque, uint8_t *ci, const uint8_t *mi,
+                                     size_t size)
 {
     if (size == 0)
         return;
@@ -613,10 +611,8 @@ HiAEx4_enc_partial_noupdate_software(HiAEx4_state_t *state_opaque,
 }
 
 static void
-HiAEx4_dec_partial_noupdate_software(HiAEx4_state_t *state_opaque,
-                                     uint8_t        *mi,
-                                     const uint8_t  *ci,
-                                     size_t          size)
+HiAEx4_dec_partial_noupdate_software(HiAEx4_state_t *state_opaque, uint8_t *mi, const uint8_t *ci,
+                                     size_t size)
 {
     if (size == 0)
         return;
@@ -640,14 +636,8 @@ HiAEx4_dec_partial_noupdate_software(HiAEx4_state_t *state_opaque,
 }
 
 static int
-HiAEx4_encrypt_software(const uint8_t *key,
-                        const uint8_t *nonce,
-                        const uint8_t *msg,
-                        uint8_t       *ct,
-                        size_t         msg_len,
-                        const uint8_t *ad,
-                        size_t         ad_len,
-                        uint8_t       *tag)
+HiAEx4_encrypt_software(const uint8_t *key, const uint8_t *nonce, const uint8_t *msg, uint8_t *ct,
+                        size_t msg_len, const uint8_t *ad, size_t ad_len, uint8_t *tag)
 {
     HiAEx4_state_t state;
     HiAEx4_init_software(&state, key, nonce);
@@ -659,17 +649,11 @@ HiAEx4_encrypt_software(const uint8_t *key,
 }
 
 static int
-HiAEx4_decrypt_software(const uint8_t *key,
-                        const uint8_t *nonce,
-                        uint8_t       *msg,
-                        const uint8_t *ct,
-                        size_t         ct_len,
-                        const uint8_t *ad,
-                        size_t         ad_len,
-                        const uint8_t *tag)
+HiAEx4_decrypt_software(const uint8_t *key, const uint8_t *nonce, uint8_t *msg, const uint8_t *ct,
+                        size_t ct_len, const uint8_t *ad, size_t ad_len, const uint8_t *tag)
 {
-    HiAEx4_state_t state;
-    HIAE_ALIGN(64) uint8_t        computed_tag[HIAEX4_MACBYTES];
+    HiAEx4_state_t         state;
+    HIAE_ALIGN(64) uint8_t computed_tag[HIAEX4_MACBYTES];
     HiAEx4_init_software(&state, key, nonce);
     HiAEx4_absorb_software(&state, ad, ad_len);
     HiAEx4_dec_software(&state, msg, ct, ct_len);
@@ -679,8 +663,8 @@ HiAEx4_decrypt_software(const uint8_t *key,
 }
 
 static int
-HiAEx4_mac_software(
-    const uint8_t *key, const uint8_t *nonce, const uint8_t *data, size_t data_len, uint8_t *tag)
+HiAEx4_mac_software(const uint8_t *key, const uint8_t *nonce, const uint8_t *data, size_t data_len,
+                    uint8_t *tag)
 {
     HiAEx4_state_t state;
     HiAEx4_init_software(&state, key, nonce);

@@ -281,15 +281,15 @@ softaes_block_and(const SoftAesBlock a, const SoftAesBlock b)
     return out;
 }
 
-#if defined(__wasm__) && !defined(FAVOR_PERFORMANCE)
-#    define FAVOR_PERFORMANCE
-#endif
+#    if defined(__wasm__) && !defined(FAVOR_PERFORMANCE)
+#        define FAVOR_PERFORMANCE
+#    endif
 
-#ifndef SOFTAES_STRIDE
-#    define SOFTAES_STRIDE 16
-#endif
+#    ifndef SOFTAES_STRIDE
+#        define SOFTAES_STRIDE 16
+#    endif
 
-#ifdef FAVOR_PERFORMANCE
+#    ifdef FAVOR_PERFORMANCE
 static const uint32_t _aes_lut[1024] = {
     0xa56363c6, 0x847c7cf8, 0x997777ee, 0x8d7b7bf6, 0x0df2f2ff, 0xbd6b6bd6, 0xb16f6fde, 0x54c5c591,
     0x50303060, 0x03010102, 0xa96767ce, 0x7d2b2b56, 0x19fefee7, 0x62d7d7b5, 0xe6abab4d, 0x9a7676ec,
@@ -421,10 +421,10 @@ static const uint32_t _aes_lut[1024] = {
     0x82c34141, 0x29b09999, 0x5a772d2d, 0x1e110f0f, 0x7bcbb0b0, 0xa8fc5454, 0x6dd6bbbb, 0x2c3a1616
 };
 
-static const uint32_t* const LUT0 = _aes_lut + 0 * 256;
-static const uint32_t* const LUT1 = _aes_lut + 1 * 256;
-static const uint32_t* const LUT2 = _aes_lut + 2 * 256;
-static const uint32_t* const LUT3 = _aes_lut + 3 * 256;
+static const uint32_t *const LUT0 = _aes_lut + 0 * 256;
+static const uint32_t *const LUT1 = _aes_lut + 1 * 256;
+static const uint32_t *const LUT2 = _aes_lut + 2 * 256;
+static const uint32_t *const LUT3 = _aes_lut + 3 * 256;
 
 static SoftAesBlock
 _encrypt(const uint8_t ix0[4], const uint8_t ix1[4], const uint8_t ix2[4], const uint8_t ix3[4])
@@ -454,7 +454,7 @@ _encrypt(const uint8_t ix0[4], const uint8_t ix1[4], const uint8_t ix2[4], const
     return out;
 }
 
-#else
+#    else
 
 uint32_t _aes_lut[256] __attribute__((visibility("hidden"))) = {
     0xa56363c6, 0x847c7cf8, 0x997777ee, 0x8d7b7bf6, 0x0df2f2ff, 0xbd6b6bd6, 0xb16f6fde, 0x54c5c591,
@@ -491,7 +491,7 @@ uint32_t _aes_lut[256] __attribute__((visibility("hidden"))) = {
     0xc3414182, 0xb0999929, 0x772d2d5a, 0x110f0f1e, 0xcbb0b07b, 0xfc5454a8, 0xd6bbbb6d, 0x3a16162c
 };
 
-static const uint32_t* const LUT = _aes_lut;
+static const uint32_t *const LUT = _aes_lut;
 
 static SoftAesBlock
 _encrypt(const uint8_t ix0[4], const uint8_t ix1[4], const uint8_t ix2[4], const uint8_t ix3[4])
@@ -517,9 +517,9 @@ _encrypt(const uint8_t ix0[4], const uint8_t ix1[4], const uint8_t ix2[4], const
         }
     }
 
-#    if defined(__GNUC__) || defined(__clang__)
+#        if defined(__GNUC__) || defined(__clang__)
     __asm__ __volatile__("" : : "r"(t) : "memory");
-#    endif
+#        endif
 
     out.w0 = t[0][0][ix0[0] / SOFTAES_STRIDE];
     out.w0 ^= ROTL32(t[0][1][ix1[0] / SOFTAES_STRIDE], 8);
@@ -543,7 +543,7 @@ _encrypt(const uint8_t ix0[4], const uint8_t ix1[4], const uint8_t ix2[4], const
 
     return out;
 }
-#endif
+#    endif
 
 static inline SoftAesBlock
 softaes_block_aesl(const SoftAesBlock block)

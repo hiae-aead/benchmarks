@@ -1,36 +1,37 @@
 #ifndef ROCCA_S_H
 #define ROCCA_S_H
 
-#include <stdlib.h>
 #include <stdint.h>
+#include <stdlib.h>
 
 #define ROCCA_KEY_SIZE       (32)
 #define ROCCA_IV_SIZE        (16)
 #define ROCCA_MSG_BLOCK_SIZE (32)
 #define ROCCA_TAG_SIZE       (32)
-#define ROCCA_STATE_NUM      ( 7)
+#define ROCCA_STATE_NUM      (7)
 
 #if defined(_MSC_VER)
-# define ROCCA_ALIGN __declspec(align(64))
+#    define ROCCA_ALIGN __declspec(align(64))
 #else
-# define ROCCA_ALIGN __attribute__((aligned(64)))
+#    define ROCCA_ALIGN __attribute__((aligned(64)))
 #endif
 
 typedef struct ROCCA_CTX {
-	ROCCA_ALIGN uint8_t key[ROCCA_KEY_SIZE/16][16];
-	ROCCA_ALIGN uint8_t state[ROCCA_STATE_NUM][16];
-	size_t size_ad;
-	size_t size_m;
+    ROCCA_ALIGN uint8_t key[ROCCA_KEY_SIZE / 16][16];
+    ROCCA_ALIGN uint8_t state[ROCCA_STATE_NUM][16];
+    size_t              size_ad;
+    size_t              size_m;
 } rocca_context;
 
-void rocca_init(rocca_context * ctx, const uint8_t * key, const uint8_t * iv);
-void rocca_add_ad(rocca_context * ctx, const uint8_t * in, size_t size);
-void rocca_encrypt(rocca_context * ctx, uint8_t * out, const uint8_t * in, size_t size);
-void rocca_decrypt(rocca_context * ctx, uint8_t * out, const uint8_t * in, size_t size);
-/* XOR the input with the keystream from encrypting zeros without authentication.
- * Calls consume complete 32-byte blocks, including any final partial block.
+void rocca_init(rocca_context *ctx, const uint8_t *key, const uint8_t *iv);
+void rocca_add_ad(rocca_context *ctx, const uint8_t *in, size_t size);
+void rocca_encrypt(rocca_context *ctx, uint8_t *out, const uint8_t *in, size_t size);
+void rocca_decrypt(rocca_context *ctx, uint8_t *out, const uint8_t *in, size_t size);
+/* XOR the input with the keystream from encrypting zeros without
+ * authentication. Calls consume complete 32-byte blocks, including any final
+ * partial block.
  */
-void rocca_stream_xor(rocca_context * ctx, uint8_t * out, const uint8_t * in, size_t size);
-void rocca_tag(rocca_context * ctx, uint8_t *tag);
+void rocca_stream_xor(rocca_context *ctx, uint8_t *out, const uint8_t *in, size_t size);
+void rocca_tag(rocca_context *ctx, uint8_t *tag);
 
 #endif

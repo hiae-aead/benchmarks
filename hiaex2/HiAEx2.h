@@ -3,11 +3,12 @@
 
 /**
  * @file HiAEx2.h
- * @brief HiAEx2 (High-Throughput Authenticated Encryption) - A high-performance AEAD cipher
+ * @brief HiAEx2 (High-Throughput Authenticated Encryption) - A high-performance
+ * AEAD cipher
  *
- * HiAEx2 is a cross-platform cryptographic library implementing an AES-based AEAD
- * (Authenticated Encryption with Associated Data) cipher with runtime CPU feature
- * detection. It automatically selects the optimal implementation:
+ * HiAEx2 is a cross-platform cryptographic library implementing an AES-based
+ * AEAD (Authenticated Encryption with Associated Data) cipher with runtime CPU
+ * feature detection. It automatically selects the optimal implementation:
  * - VAES+AVX512 for latest x86 processors
  * - AES-NI for x86-64 processors with hardware AES
  * - ARM Crypto Extensions for ARM64 processors
@@ -50,7 +51,8 @@ extern "C" {
 /** @brief Key size in bytes (256 bits)
  *
  * HiAEx2 uses 256-bit (32-byte) keys for all operations.
- * Keys should be generated using a cryptographically secure random number generator.
+ * Keys should be generated using a cryptographically secure random number
+ * generator.
  */
 #define HIAEX2_KEYBYTES 32
 
@@ -81,13 +83,14 @@ extern "C" {
 /**
  * @brief Opaque state structure for low-level streaming operations
  *
- * This structure maintains the internal state for incremental encryption/decryption
- * operations. The contents are implementation-specific and should not be accessed
- * directly by applications.
+ * This structure maintains the internal state for incremental
+ * encryption/decryption operations. The contents are implementation-specific
+ * and should not be accessed directly by applications.
  *
  * @note The state is 512 bytes to accommodate all implementation variants
  * @note States allocated on the heap must be 64-byte aligned.
- * @note Each state instance is independent and thread-safe when used by one thread
+ * @note Each state instance is independent and thread-safe when used by one
+ * thread
  * @warning Never modify the contents directly or copy states between operations
  */
 typedef struct {
@@ -112,13 +115,15 @@ typedef struct {
  * protects both the ciphertext and optional associated data.
  *
  * @param key       Encryption key (must be HIAEX2_KEYBYTES bytes)
- * @param nonce     Unique nonce/IV for this message (must be HIAEX2_NONCEBYTES bytes)
+ * @param nonce     Unique nonce/IV for this message (must be HIAEX2_NONCEBYTES
+ * bytes)
  * @param msg       Plaintext message to encrypt
  * @param ct        Output buffer for ciphertext (same size as msg)
  * @param msg_len   Length of the message in bytes
  * @param ad        Optional associated data to authenticate (can be NULL)
  * @param ad_len    Length of associated data (0 if ad is NULL)
- * @param tag       Output buffer for authentication tag (must be HIAEX2_MACBYTES bytes)
+ * @param tag       Output buffer for authentication tag (must be
+ * HIAEX2_MACBYTES bytes)
  *
  * @return 0 on success, non-zero on error
  *
@@ -244,14 +249,16 @@ int HiAEx2_init_library(void);
  * Returns a string describing which implementation was selected based
  * on CPU feature detection.
  *
- * @return Implementation name (e.g., "VAES+AVX512", "AES-NI", "ARM-Crypto", "Software")
+ * @return Implementation name (e.g., "VAES+AVX512", "AES-NI", "ARM-Crypto",
+ * "Software")
  *
  * @note The returned string is static and should not be freed
  * @note Useful for debugging and performance analysis
  *
  * Example:
  * @code
- * printf("Using HiAEx2 implementation: %s\n", HiAEx2_get_implementation_name());
+ * printf("Using HiAEx2 implementation: %s\n",
+ * HiAEx2_get_implementation_name());
  * @endcode
  */
 const char *HiAEx2_get_implementation_name(void);
@@ -263,10 +270,11 @@ const char *HiAEx2_get_implementation_name(void);
  * detecting the best one. Useful for testing, debugging, or when specific
  * behavior is required.
  *
- * @param impl_name Implementation name to force ("Software", "AES-NI", "VAES+AVX512", "ARM NEON",
- * "ARM SHA3")
+ * @param impl_name Implementation name to force ("Software", "AES-NI",
+ * "VAES+AVX512", "ARM NEON", "ARM SHA3")
  *
- * @return 0 on success, -1 if implementation is not available or name is invalid
+ * @return 0 on success, -1 if implementation is not available or name is
+ * invalid
  *
  * @note Must be called before any other HiAEx2 operations
  * @note Pass NULL to restore automatic detection
@@ -565,9 +573,10 @@ void HiAEx2_finalize(HiAEx2_state_t *state, uint64_t ad_len, uint64_t msg_len, u
 /**
  * @brief Finalize MAC computation with enhanced security
  *
- * Finalizes the MAC computation using enhanced security measures for multi-parallel
- * implementations. This function provides improved domain separation and additional
- * security measures compared to the standard finalize function.
+ * Finalizes the MAC computation using enhanced security measures for
+ * multi-parallel implementations. This function provides improved domain
+ * separation and additional security measures compared to the standard finalize
+ * function.
  *
  * @param state    Current state (will be modified)
  * @param data_len Total length of authenticated data in bytes

@@ -1,4 +1,4 @@
-#define _GNU_SOURCE  /* For posix_memalign */
+#define _GNU_SOURCE /* For posix_memalign */
 
 #include "rocca-s.h"
 #include "timing.h"
@@ -10,10 +10,11 @@
 
 #define BASE_ITERATIONS  10000
 #define WARMUP_TIME      0.5 // 0.5s warmup
-#define COMPUTATION_TIME 3.0  // 3s computation time for measurements
-#define NUM_MEASUREMENTS 5    // Number of measurement runs
+#define COMPUTATION_TIME 3.0 // 3s computation time for measurements
+#define NUM_MEASUREMENTS 5 // Number of measurement runs
 
-// Page-aligned, so that the results don't depend on where malloc() happens to put the buffers. Some placements are up to 25% slower.
+// Page-aligned, so that the results don't depend on where malloc() happens to
+// put the buffers. Some placements are up to 25% slower.
 #define BUFFER_ALIGNMENT 4096
 
 const int len_test_case = 11;
@@ -22,9 +23,9 @@ size_t    test_case[11] = { 65536, 32768, 16384, 8192, 4096, 2048, 1024, 512, 25
 static int csv_output = 0;
 
 typedef struct {
-    double        gbps;
-    double        mbps;
-    double        cycles_per_byte;
+    double         gbps;
+    double         mbps;
+    double         cycles_per_byte;
     rocca_stats_t *stats;
 } perf_result_t;
 
@@ -63,7 +64,7 @@ speed_test_ad_work(size_t len)
     }
     memset(ad, 1, len);
 
-    ROCCA_ALIGN uint8_t tag[ROCCA_TAG_SIZE];
+    ROCCA_ALIGN uint8_t       tag[ROCCA_TAG_SIZE];
     ROCCA_ALIGN rocca_context ctx;
 
     // Warmup phase
@@ -153,7 +154,7 @@ speed_test_encode_work(size_t len, int AEAD)
     }
     memset(msg, 0x1, len);
 
-    ROCCA_ALIGN uint8_t tag[ROCCA_TAG_SIZE];
+    ROCCA_ALIGN uint8_t       tag[ROCCA_TAG_SIZE];
     ROCCA_ALIGN rocca_context ctx;
 
     // Warmup phase
@@ -259,7 +260,7 @@ speed_test_decode_work(size_t len, int AEAD)
     }
     memset(msg, 0x1, len);
 
-    ROCCA_ALIGN uint8_t tag[ROCCA_TAG_SIZE];
+    ROCCA_ALIGN uint8_t       tag[ROCCA_TAG_SIZE];
     ROCCA_ALIGN rocca_context ctx;
 
     // First encrypt to get ciphertext
@@ -487,7 +488,7 @@ main(int argc, char *argv[])
         printf("=============================================================\n");
     }
 
-    double       timer_resolution = 1.0;
+    double        timer_resolution = 1.0;
     rocca_timer_t res_timer;
     for (int i = 0; i < 100; i++) {
         rocca_timer_start(&res_timer);

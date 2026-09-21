@@ -1,8 +1,8 @@
 #include <stdio.h>
 
+#include "../aegis-stream-test.h"
 #include "common.h"
 #include "crypto_aead.h"
-#include "../aegis-stream-test.h"
 
 int
 main(void)

@@ -11,16 +11,16 @@
 
 #if defined(__x86_64__) || defined(_M_X64)
 
-#include <immintrin.h>
-#include <wmmintrin.h>
+#    include <immintrin.h>
+#    include <wmmintrin.h>
 
-#ifdef __clang__
-#    pragma clang attribute push(__attribute__((target("aes,avx"))), apply_to = function)
-#elif defined(__GNUC__)
-#    pragma GCC target("aes,avx")
-#endif
+#    ifdef __clang__
+#        pragma clang attribute push(__attribute__((target("aes,avx"))), apply_to = function)
+#    elif defined(__GNUC__)
+#        pragma GCC target("aes,avx")
+#    endif
 
-#define AES_BLOCK_LENGTH 32
+#    define AES_BLOCK_LENGTH 32
 
 typedef struct {
     __m128i b0;
@@ -85,12 +85,13 @@ aegis128x2_update(aes_block_t *const state, const aes_block_t d1, const aes_bloc
     state[4] = AES_BLOCK_XOR(state[4], d2);
 }
 
-#include "128x2-common.h"
+#    include "128x2-common.h"
 
-#ifdef __clang__
-#    pragma clang attribute pop
-#endif
+#    ifdef __clang__
+#        pragma clang attribute pop
+#    endif
 
 #else // !x86_64
-#error "AES-NI implementation requires x86-64 architecture. Use aegis-128x2-arm for ARM platforms."
+#    error \
+        "AES-NI implementation requires x86-64 architecture. Use aegis-128x2-arm for ARM platforms."
 #endif // x86_64 check

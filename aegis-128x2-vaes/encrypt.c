@@ -11,15 +11,15 @@
 
 #if defined(__x86_64__) || defined(_M_X64)
 
-#include <immintrin.h>
+#    include <immintrin.h>
 
-#ifdef __clang__
-#    pragma clang attribute push(__attribute__((target("vaes,avx2,aes"))), apply_to = function)
-#elif defined(__GNUC__)
-#    pragma GCC target("vaes,avx2,aes")
-#endif
+#    ifdef __clang__
+#        pragma clang attribute push(__attribute__((target("vaes,avx2,aes"))), apply_to = function)
+#    elif defined(__GNUC__)
+#        pragma GCC target("vaes,avx2,aes")
+#    endif
 
-#define AES_BLOCK_LENGTH 32
+#    define AES_BLOCK_LENGTH 32
 
 typedef struct {
     __m256i b;
@@ -40,7 +40,7 @@ AES_BLOCK_AND(const aes_block_t a, const aes_block_t b)
 static inline aes_block_t
 AES_BLOCK_LOAD(const uint8_t *a)
 {
-    return (aes_block_t) { _mm256_loadu_si256((const __m256i *)a) };
+    return (aes_block_t) { _mm256_loadu_si256((const __m256i *) a) };
 }
 
 static inline aes_block_t
@@ -53,7 +53,7 @@ AES_BLOCK_LOAD_64x2(uint64_t a, uint64_t b)
 static inline void
 AES_BLOCK_STORE(uint8_t *a, const aes_block_t b)
 {
-    _mm256_storeu_si256((__m256i *)a, b.b);
+    _mm256_storeu_si256((__m256i *) a, b.b);
 }
 
 static inline aes_block_t
@@ -81,12 +81,13 @@ aegis128x2_update(aes_block_t *const state, const aes_block_t d1, const aes_bloc
     state[4] = AES_BLOCK_XOR(state[4], d2);
 }
 
-#include "128x2-common.h"
+#    include "128x2-common.h"
 
-#ifdef __clang__
-#    pragma clang attribute pop
-#endif
+#    ifdef __clang__
+#        pragma clang attribute pop
+#    endif
 
 #else // !x86_64
-#error "VAES implementation requires x86-64 architecture. Use aegis-128x2-arm for ARM platforms."
+#    error \
+        "VAES implementation requires x86-64 architecture. Use aegis-128x2-arm for ARM platforms."
 #endif // x86_64 check

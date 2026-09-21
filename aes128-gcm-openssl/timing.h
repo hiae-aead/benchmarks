@@ -1,7 +1,7 @@
 #ifndef TIMING_H
 #define TIMING_H
 
-#define _GNU_SOURCE  /* For posix_memalign */
+#define _GNU_SOURCE /* For posix_memalign */
 
 #include <math.h>
 #include <stdint.h>

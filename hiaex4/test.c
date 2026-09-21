@@ -1,7 +1,7 @@
 // Checks the code being benchmarked against known test vectors.
 
-#include "crypto_aead.h"
 #include "HiAEx4.h"
+#include "crypto_aead.h"
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -266,9 +266,9 @@ hex_decode(uint8_t *out, size_t max_len, const char *hex)
 static const char *
 run_test_vector(const TestVector *tv)
 {
-    static uint8_t key[CRYPTO_KEYBYTES], nonce[CRYPTO_NPUBBYTES];
-    static uint8_t ad[MAX_LEN], plaintext[MAX_LEN], decrypted[MAX_LEN];
-    static uint8_t expected[MAX_LEN + CRYPTO_ABYTES], ciphertext[MAX_LEN + CRYPTO_ABYTES];
+    static uint8_t     key[CRYPTO_KEYBYTES], nonce[CRYPTO_NPUBBYTES];
+    static uint8_t     ad[MAX_LEN], plaintext[MAX_LEN], decrypted[MAX_LEN];
+    static uint8_t     expected[MAX_LEN + CRYPTO_ABYTES], ciphertext[MAX_LEN + CRYPTO_ABYTES];
     unsigned long long clen, mlen;
 
     if (hex_decode(key, sizeof key, tv->key) != CRYPTO_KEYBYTES ||
@@ -282,16 +282,20 @@ run_test_vector(const TestVector *tv)
         return "bad test vector";
     }
 
-    int ret = crypto_aead_encrypt(ciphertext, &clen, plaintext, pt_len, ad, ad_len, NULL, nonce, key);
-    if (ret != 0 || clen != (unsigned long long) pt_len + CRYPTO_ABYTES || memcmp(ciphertext, expected, clen) != 0) {
+    int ret =
+        crypto_aead_encrypt(ciphertext, &clen, plaintext, pt_len, ad, ad_len, NULL, nonce, key);
+    if (ret != 0 || clen != (unsigned long long) pt_len + CRYPTO_ABYTES ||
+        memcmp(ciphertext, expected, clen) != 0) {
         return "wrong ciphertext or tag";
     }
     ret = crypto_aead_decrypt(decrypted, &mlen, NULL, ciphertext, clen, ad, ad_len, nonce, key);
-    if (ret != 0 || mlen != (unsigned long long) pt_len || memcmp(decrypted, plaintext, pt_len) != 0) {
+    if (ret != 0 || mlen != (unsigned long long) pt_len ||
+        memcmp(decrypted, plaintext, pt_len) != 0) {
         return "decryption failed";
     }
     ciphertext[clen - 1] ^= 1;
-    if (crypto_aead_decrypt(decrypted, &mlen, NULL, ciphertext, clen, ad, ad_len, nonce, key) == 0) {
+    if (crypto_aead_decrypt(decrypted, &mlen, NULL, ciphertext, clen, ad, ad_len, nonce, key) ==
+        0) {
         return "a forged tag was accepted";
     }
     return NULL;
@@ -304,11 +308,9 @@ run_stream_tests(void)
     HIAE_ALIGN(64) uint8_t zero[MAX_LEN] = { 0 };
     HIAE_ALIGN(64) uint8_t input[MAX_LEN], expected[MAX_LEN];
     HIAE_ALIGN(64) uint8_t output[MAX_LEN + 128];
-    HiAEx4_state_t reference, actual;
-    const size_t lengths[] = { 0, 1, 63, 64, 65,
-                               127, 128, 129,
-                               1023, 1024, 1025,
-                               2047, 2048, 2049, MAX_LEN };
+    HiAEx4_state_t         reference, actual;
+    const size_t           lengths[] = { 0,    1,    63,   64,   65,   127,  128,    129,
+                                         1023, 1024, 1025, 2047, 2048, 2049, MAX_LEN };
 
     for (size_t i = 0; i < sizeof key; i++) {
         key[i] = (uint8_t) (i * 7 + 3);
@@ -323,7 +325,7 @@ run_stream_tests(void)
         return 1;
     }
     for (size_t test = 0; test < sizeof lengths / sizeof lengths[0]; test++) {
-        const size_t len = lengths[test];
+        const size_t   len = lengths[test];
         uint8_t *const out = output + 64;
 
         HiAEx4_init(&reference, key, nonce);
@@ -341,17 +343,15 @@ run_stream_tests(void)
             return 1;
         }
         memcpy(out, input, len);
-        if (crypto_stream_xor(out, out, len, nonce, key) != 0 ||
-            memcmp(out, expected, len) != 0 || output[63] != 0xa5 || out[len] != 0xa5 ||
-            crypto_stream_xor(out, out, len, nonce, key) != 0 ||
-            memcmp(out, input, len) != 0) {
+        if (crypto_stream_xor(out, out, len, nonce, key) != 0 || memcmp(out, expected, len) != 0 ||
+            output[63] != 0xa5 || out[len] != 0xa5 ||
+            crypto_stream_xor(out, out, len, nonce, key) != 0 || memcmp(out, input, len) != 0) {
             printf("%s in-place stream XOR failed at %zu bytes\n", NAME, len);
             return 1;
         }
         HiAEx4_init(&actual, key, nonce);
         HiAEx4_stream_xor(&actual, out, input, len - len % 64);
-        HiAEx4_stream_xor(&actual, out + len - len % 64,
-                         input + len - len % 64, len % 64);
+        HiAEx4_stream_xor(&actual, out + len - len % 64, input + len - len % 64, len % 64);
         if (memcmp(out, expected, len) != 0 ||
             memcmp(actual.opaque, reference.opaque, sizeof actual.opaque) != 0) {
             printf("%s split stream XOR failed at %zu bytes\n", NAME, len);
@@ -361,8 +361,10 @@ run_stream_tests(void)
     if (crypto_stream_xor(NULL, NULL, 0, nonce, key) != 0) {
         return 1;
     }
-    printf("%s stream XOR: zero-encryption equivalence, state, boundaries, and in-place tests passed (%s)\n",
-           NAME, HiAEx4_get_implementation_name());
+    printf(
+        "%s stream XOR: zero-encryption equivalence, state, boundaries, and "
+        "in-place tests passed (%s)\n",
+        NAME, HiAEx4_get_implementation_name());
     return 0;
 }
 

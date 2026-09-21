@@ -81,8 +81,9 @@ static const char    *forced_impl_name = NULL;
 static void
 _cpuid(unsigned int cpu_info[4U], const unsigned int cpu_info_type)
 {
-#if defined(_MSC_VER) && (defined(_M_X64) || defined(_M_IX86)) && \
-    !defined(__cpuid) /* __cpuid is a function on MSVC, can be an incompatible macro elsewhere */
+#if defined(_MSC_VER) && (defined(_M_X64) || defined(_M_IX86)) &&              \
+    !defined(__cpuid) /* __cpuid is a function on MSVC, can be an incompatible \
+                         macro elsewhere */
     __cpuid((int *) cpu_info, cpu_info_type);
 #elif defined(HAVE_CPUID)
     cpu_info[0] = cpu_info[1] = cpu_info[2] = cpu_info[3] = 0;
@@ -504,36 +505,24 @@ HiAEx2_dec_partial_noupdate(HiAEx2_state_t *state, uint8_t *mi, const uint8_t *c
 }
 
 int
-HiAEx2_encrypt(const uint8_t *key,
-               const uint8_t *nonce,
-               const uint8_t *msg,
-               uint8_t       *ct,
-               size_t         msg_len,
-               const uint8_t *ad,
-               size_t         ad_len,
-               uint8_t       *tag)
+HiAEx2_encrypt(const uint8_t *key, const uint8_t *nonce, const uint8_t *msg, uint8_t *ct,
+               size_t msg_len, const uint8_t *ad, size_t ad_len, uint8_t *tag)
 {
     hiaex2_init_dispatch();
     return hiaex2_impl->encrypt(key, nonce, msg, ct, msg_len, ad, ad_len, tag);
 }
 
 int
-HiAEx2_decrypt(const uint8_t *key,
-               const uint8_t *nonce,
-               uint8_t       *msg,
-               const uint8_t *ct,
-               size_t         ct_len,
-               const uint8_t *ad,
-               size_t         ad_len,
-               const uint8_t *tag)
+HiAEx2_decrypt(const uint8_t *key, const uint8_t *nonce, uint8_t *msg, const uint8_t *ct,
+               size_t ct_len, const uint8_t *ad, size_t ad_len, const uint8_t *tag)
 {
     hiaex2_init_dispatch();
     return hiaex2_impl->decrypt(key, nonce, msg, ct, ct_len, ad, ad_len, tag);
 }
 
 int
-HiAEx2_mac(
-    const uint8_t *key, const uint8_t *nonce, const uint8_t *data, size_t data_len, uint8_t *tag)
+HiAEx2_mac(const uint8_t *key, const uint8_t *nonce, const uint8_t *data, size_t data_len,
+           uint8_t *tag)
 {
     hiaex2_init_dispatch();
     return hiaex2_impl->mac(key, nonce, data, data_len, tag);

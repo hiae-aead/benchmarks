@@ -34,7 +34,8 @@
 #        define PREFETCH_WRITE(addr, locality) __builtin_prefetch((addr), 1, (locality))
 #    endif
 
-// Prefetch distance in bytes - tuned for typical ARM64 cache line size (64-128 bytes)
+// Prefetch distance in bytes - tuned for typical ARM64 cache line size (64-128
+// bytes)
 #    define PREFETCH_DISTANCE 128
 
 typedef uint8x16_t DATA128b;
@@ -424,8 +425,8 @@ HiAEx4_init_arm_sha3(HiAEx4_state_t *state_opaque, const uint8_t *key, const uin
     state[15]   = SIMD_XOR(c0, c1);
 
     // Context separation
-    const uint8_t degree                = 4;
-    HIAE_ALIGN(64) uint8_t       ctx_bytes[BLOCK_SIZE] = { 0 };
+    const uint8_t          degree                = 4;
+    HIAE_ALIGN(64) uint8_t ctx_bytes[BLOCK_SIZE] = { 0 };
     for (size_t i = 0; i < degree; i++) {
         ctx_bytes[i * 16 + 0] = (uint8_t) i;
         ctx_bytes[i * 16 + 1] = degree - 1;
@@ -447,9 +448,9 @@ HiAEx4_absorb_arm_sha3(HiAEx4_state_t *state_opaque, const uint8_t *ad, size_t l
 {
     HIAE_ALIGN(64) DATA512b state[STATE];
     memcpy(state, state_opaque->opaque, sizeof(state));
-    size_t   i      = 0;
-    size_t   rest   = len % UNROLL_BLOCK_SIZE;
-    size_t   prefix = len - rest;
+    size_t                  i      = 0;
+    size_t                  rest   = len % UNROLL_BLOCK_SIZE;
+    size_t                  prefix = len - rest;
     HIAE_ALIGN(64) DATA512b tmp[STATE], M[16];
     if (len == 0)
         return;
@@ -477,10 +478,8 @@ HiAEx4_absorb_arm_sha3(HiAEx4_state_t *state_opaque, const uint8_t *ad, size_t l
 }
 
 static void
-HiAEx4_finalize_arm_sha3(HiAEx4_state_t *state_opaque,
-                         uint64_t        ad_len,
-                         uint64_t        msg_len,
-                         uint8_t        *tag)
+HiAEx4_finalize_arm_sha3(HiAEx4_state_t *state_opaque, uint64_t ad_len, uint64_t msg_len,
+                         uint8_t *tag)
 {
     HIAE_ALIGN(64) DATA512b state[STATE];
     memcpy(state, state_opaque->opaque, sizeof(state));
@@ -509,14 +508,15 @@ HiAEx4_finalize_arm_sha3(HiAEx4_state_t *state_opaque,
     memcpy(state_opaque->opaque, state, sizeof(state));
 }
 
-/* Enhanced MAC finalization with proper domain separation for multi-parallel implementations */
+/* Enhanced MAC finalization with proper domain separation for multi-parallel
+ * implementations */
 static void
 HiAEx4_finalize_mac_arm_sha3(HiAEx4_state_t *state_opaque, uint64_t data_len, uint8_t *tag)
 {
     HIAE_ALIGN(64) DATA512b state[STATE];
     memcpy(state, state_opaque->opaque, sizeof(state));
-    HIAE_ALIGN(64) DATA512b      tmp[STATE];
-    const uint8_t degree = 4;
+    HIAE_ALIGN(64) DATA512b tmp[STATE];
+    const uint8_t           degree = 4;
 
     /* Step 1: Initial diffusion with data_len and HIAEX4_MACBYTES */
     HIAE_ALIGN(64) uint64_t lens[2];
@@ -526,7 +526,8 @@ HiAEx4_finalize_mac_arm_sha3(HiAEx4_state_t *state_opaque, uint64_t data_len, ui
     init_update(state, tmp, temp, temp);
     init_update(state, tmp, temp, temp);
 
-    /* Step 2: XOR all states together to get tag_multi - use EOR3 for efficiency */
+    /* Step 2: XOR all states together to get tag_multi - use EOR3 for efficiency
+     */
     DATA512b acc0 = SIMD_XOR3(state[0], state[1], state[2]);
     DATA512b acc1 = SIMD_XOR3(state[3], state[4], state[5]);
     DATA512b acc2 = SIMD_XOR3(state[6], state[7], state[8]);
@@ -665,10 +666,8 @@ HiAEx4_dec_arm_sha3(HiAEx4_state_t *state_opaque, uint8_t *mi, const uint8_t *ci
 }
 
 static void
-HiAEx4_enc_partial_noupdate_arm_sha3(HiAEx4_state_t *state_opaque,
-                                     uint8_t        *ci,
-                                     const uint8_t  *mi,
-                                     size_t          size)
+HiAEx4_enc_partial_noupdate_arm_sha3(HiAEx4_state_t *state_opaque, uint8_t *ci, const uint8_t *mi,
+                                     size_t size)
 {
     if (size == 0)
         return;
@@ -688,10 +687,8 @@ HiAEx4_enc_partial_noupdate_arm_sha3(HiAEx4_state_t *state_opaque,
 }
 
 static void
-HiAEx4_dec_partial_noupdate_arm_sha3(HiAEx4_state_t *state_opaque,
-                                     uint8_t        *mi,
-                                     const uint8_t  *ci,
-                                     size_t          size)
+HiAEx4_dec_partial_noupdate_arm_sha3(HiAEx4_state_t *state_opaque, uint8_t *mi, const uint8_t *ci,
+                                     size_t size)
 {
     if (size == 0)
         return;
@@ -715,14 +712,8 @@ HiAEx4_dec_partial_noupdate_arm_sha3(HiAEx4_state_t *state_opaque,
 }
 
 static int
-HiAEx4_encrypt_arm_sha3(const uint8_t *key,
-                        const uint8_t *nonce,
-                        const uint8_t *msg,
-                        uint8_t       *ct,
-                        size_t         msg_len,
-                        const uint8_t *ad,
-                        size_t         ad_len,
-                        uint8_t       *tag)
+HiAEx4_encrypt_arm_sha3(const uint8_t *key, const uint8_t *nonce, const uint8_t *msg, uint8_t *ct,
+                        size_t msg_len, const uint8_t *ad, size_t ad_len, uint8_t *tag)
 {
     HiAEx4_state_t state;
     HiAEx4_init_arm_sha3(&state, key, nonce);
@@ -734,17 +725,11 @@ HiAEx4_encrypt_arm_sha3(const uint8_t *key,
 }
 
 static int
-HiAEx4_decrypt_arm_sha3(const uint8_t *key,
-                        const uint8_t *nonce,
-                        uint8_t       *msg,
-                        const uint8_t *ct,
-                        size_t         ct_len,
-                        const uint8_t *ad,
-                        size_t         ad_len,
-                        const uint8_t *tag)
+HiAEx4_decrypt_arm_sha3(const uint8_t *key, const uint8_t *nonce, uint8_t *msg, const uint8_t *ct,
+                        size_t ct_len, const uint8_t *ad, size_t ad_len, const uint8_t *tag)
 {
-    HiAEx4_state_t state;
-    HIAE_ALIGN(64) uint8_t        computed_tag[HIAEX4_MACBYTES];
+    HiAEx4_state_t         state;
+    HIAE_ALIGN(64) uint8_t computed_tag[HIAEX4_MACBYTES];
     HiAEx4_init_arm_sha3(&state, key, nonce);
     HiAEx4_absorb_arm_sha3(&state, ad, ad_len);
     HiAEx4_dec_arm_sha3(&state, msg, ct, ct_len);
@@ -754,8 +739,8 @@ HiAEx4_decrypt_arm_sha3(const uint8_t *key,
 }
 
 static int
-HiAEx4_mac_arm_sha3(
-    const uint8_t *key, const uint8_t *nonce, const uint8_t *data, size_t data_len, uint8_t *tag)
+HiAEx4_mac_arm_sha3(const uint8_t *key, const uint8_t *nonce, const uint8_t *data, size_t data_len,
+                    uint8_t *tag)
 {
     HiAEx4_state_t state;
     HiAEx4_init_arm_sha3(&state, key, nonce);
