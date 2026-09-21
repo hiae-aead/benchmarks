@@ -1,3 +1,13 @@
+#ifndef AEGIS_ENCRYPT_BULK
+#    define AEGIS_ENCRYPT_BULK(dst, src, len, state) 0
+#endif
+#ifndef AEGIS_DECRYPT_BULK
+#    define AEGIS_DECRYPT_BULK(dst, src, len, state) 0
+#endif
+#ifndef AEGIS_STREAM_XOR_BULK
+#    define AEGIS_STREAM_XOR_BULK(dst, src, len, state) 0
+#endif
+
 #define RATE 64
 
 static void
@@ -237,7 +247,7 @@ encrypt_detached(uint8_t *c, uint8_t *mac, size_t maclen, const uint8_t *m, size
         memcpy(src, ad + i, adlen % RATE);
         aegis128x2_absorb(src, state);
     }
-    for (i = 0; i + RATE <= mlen; i += RATE) {
+    for (i = AEGIS_ENCRYPT_BULK(c, m, mlen, state); i + RATE <= mlen; i += RATE) {
         aegis128x2_enc(c + i, m + i, state);
     }
     if (mlen % RATE) {
@@ -278,11 +288,11 @@ decrypt_detached(uint8_t *m, const uint8_t *c, size_t clen, const uint8_t *mac, 
         aegis128x2_absorb(src, state);
     }
     if (m != NULL) {
-        for (i = 0; i + RATE <= mlen; i += RATE) {
+        for (i = AEGIS_DECRYPT_BULK(m, c, mlen, state); i + RATE <= mlen; i += RATE) {
             aegis128x2_dec(m + i, c + i, state);
         }
     } else {
-        for (i = 0; i + RATE <= mlen; i += RATE) {
+        for (i = AEGIS_DECRYPT_BULK(NULL, c, mlen, state); i + RATE <= mlen; i += RATE) {
             aegis128x2_dec(dst, c + i, state);
         }
     }
@@ -323,7 +333,7 @@ crypto_stream_xor(unsigned char *out, const unsigned char *in, unsigned long lon
     length = (size_t) len;
     aegis128x2_init(k, npub, state);
 
-    for (i = 0; length - i >= RATE; i += RATE) {
+    for (i = AEGIS_STREAM_XOR_BULK(out, in, length, state); length - i >= RATE; i += RATE) {
         aegis128x2_xor_keystream(out + i, in + i, state);
     }
     if (length != i) {
